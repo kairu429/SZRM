@@ -3,482 +3,444 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>サイゼリヤ注文スロット - 王様の特権版</title>
+    <title>サイゼリヤ注文スロット - データ引き継ぎ版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;800;900&display=swap');
         
         body {
             font-family: 'M PLUS Rounded 1c', sans-serif;
-            background-color: #f3f4f6;
-            overflow: hidden;
+            background-color: #f7fafc;
+            color: #2d3748;
+            overflow-x: hidden;
         }
 
-        .slot-card {
+        .saize-card {
             background: white;
-            border: 8px solid #009241;
-            border-radius: 20px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            border: 6px solid #009241;
+            border-radius: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
         }
 
         .slot-window {
             height: 120px;
-            overflow: hidden;
             display: flex;
             align-items: center;
             justify-content: center;
             background: #fff;
-            border: 4px inset #eee;
-            margin: 10px 0;
+            border: 4px inset #edf2f7;
+            margin: 15px 0;
+            overflow: hidden;
+            border-radius: 20px;
         }
 
         .spinning {
-            animation: slot-spin 0.1s linear infinite;
+            animation: slot-spin 0.07s linear infinite;
         }
 
         @keyframes slot-spin {
-            0% { transform: translateY(-10px); opacity: 0.5; }
-            50% { transform: translateY(10px); opacity: 0.8; }
-            100% { transform: translateY(-10px); opacity: 0.5; }
+            0% { transform: translateY(-20px); opacity: 0.3; }
+            100% { transform: translateY(20px); opacity: 0.3; }
         }
 
-        .saize-red { color: #e4002b; }
-        .saize-green { color: #009241; }
-        .btn-gradient {
-            background: linear-gradient(to bottom, #009241, #007a37);
+        /* 虹色アニメーション（レアトロフィー用） */
+        @keyframes rainbow-bg {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
         }
-        .btn-gradient:active { transform: scale(0.95); }
+
+        .rainbow-rank {
+            background: linear-gradient(124deg, #ff2400, #e81d1d, #e8b71d, #e3e81d, #1de840, #1ddde8, #2b1de8, #dd00f3, #dd00f3);
+            background-size: 800% 800%;
+            animation: rainbow-bg 4s ease infinite;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 900;
+        }
+
+        .rainbow-border {
+            background: linear-gradient(124deg, #ff2400, #e81d1d, #e8b71d, #e3e81d, #1de840, #1ddde8, #2b1de8, #dd00f3, #dd00f3);
+            background-size: 400% 400%;
+            animation: rainbow-bg 2s ease infinite;
+            border: 4px solid transparent !important;
+        }
+
+        .btn-saize {
+            background: linear-gradient(to bottom, #00b34d, #008037);
+            box-shadow: 0 6px 0 #005a26;
+            transition: all 0.1s ease;
+        }
+        .btn-saize:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #005a26;
+        }
 
         .modal-overlay {
             display: none;
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.7);
-            z-index: 50;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .locked-content {
-            filter: blur(12px);
-            pointer-events: none;
-            user-select: none;
-        }
-
-        /* ロック表示のレイヤー設定 */
-        .lock-badge {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 55;
-            background: rgba(255, 255, 255, 0.3);
-            text-align: center;
-        }
-
-        @keyframes rainbow {
-            0% { color: #ff0000; }
-            33% { color: #00ff00; }
-            66% { color: #0000ff; }
-            100% { color: #ff0000; }
-        }
-        .rainbow-text { animation: rainbow 3s linear infinite; }
-
-        #trophy-notification {
-            position: fixed;
-            top: 20px;
-            right: -300px;
-            width: 280px;
-            background: white;
-            border-left: 6px solid #fbbf24;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            border-radius: 8px;
-            transition: right 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             z-index: 100;
+            align-items: center; justify-content: center;
+            backdrop-filter: blur(8px);
         }
-        #trophy-notification.show { right: 20px; }
 
-        /* ヘッダーを常にロックより上に表示 */
-        .modal-header {
-            position: relative;
-            z-index: 60;
+        .custom-scroll::-webkit-scrollbar { width: 5px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e0; border-radius: 10px; }
+
+        #notify {
+            position: fixed;
+            top: -100px; left: 50%; transform: translateX(-50%);
+            width: 90%; max-width: 350px;
+            background: white; border-radius: 20px; padding: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: top 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 1000;
         }
+        #notify.show { top: 20px; }
     </style>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen p-4">
 
-    <!-- トロフィー通知 -->
-    <div id="trophy-notification" class="flex items-center p-4">
-        <div class="text-3xl mr-3" id="notify-icon">🏆</div>
+    <!-- 称号通知 -->
+    <div id="notify" class="flex items-center">
+        <div id="notify-icon" class="text-4xl mr-4">🏆</div>
         <div>
-            <div class="text-xs font-bold text-yellow-600">🏆 実績解除！</div>
-            <div class="text-sm font-bold text-gray-800" id="notify-title"></div>
+            <div class="text-[10px] font-black text-green-600 tracking-tighter uppercase">称号獲得！</div>
+            <div id="notify-title" class="text-sm font-black">タイトル</div>
         </div>
     </div>
 
-    <div class="max-w-md w-full text-center relative">
-        <h1 class="text-3xl mb-6 saize-red">
-            <span class="bg-white px-4 py-1 rounded-full border-2 border-green-600">サイゼリヤ ガチャ</span>
-        </h1>
+    <div class="max-w-md w-full text-center">
+        <header class="mb-8">
+            <h1 class="text-4xl font-black text-red-600 drop-shadow-sm">サイゼリヤ<span class="text-green-600">ガチャ</span></h1>
+        </header>
 
-        <div class="slot-card p-6 mb-8 relative">
-            <div id="king-badge" class="hidden absolute -top-4 -right-4 bg-yellow-400 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg border-2 border-white animate-bounce">
-                👑 王様の特権発動中
-            </div>
+        <div class="saize-card p-6 mb-6 relative">
             <div class="flex justify-between items-center mb-2">
-                <div class="text-gray-500 text-sm" id="category-label">カテゴリ</div>
-                <button id="age-display" class="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">年齢: --歳</button>
-            </div>
-            
-            <div class="slot-window rounded-lg">
-                <div id="menu-name" class="text-2xl font-bold px-4 text-center">？？？？？</div>
+                <span id="cat-label" class="bg-green-100 text-green-700 text-[10px] px-3 py-1 rounded-full font-black">CATEGORY</span>
+                <button id="age-btn" class="bg-gray-800 text-white text-[10px] px-3 py-1 rounded-full font-black hover:bg-black">
+                    年齢: <span id="age-val">--</span>歳 ✏️
+                </button>
             </div>
 
-            <div class="flex justify-between items-center mt-4 px-2">
-                <div class="text-lg font-bold saize-green" id="menu-id">№ ----</div>
-                <div class="text-2xl font-bold saize-red" id="menu-price">¥ ---</div>
+            <div class="slot-window">
+                <div id="menu-name" class="text-2xl font-black px-2 leading-tight">？？？？？</div>
+            </div>
+
+            <div class="flex justify-between items-end mt-4">
+                <div class="text-left">
+                    <div class="text-[10px] text-gray-400 font-bold">Menu No.</div>
+                    <div id="menu-id" class="text-xl font-black text-green-600">----</div>
+                </div>
+                <div class="text-right">
+                    <div class="text-[10px] text-gray-400 font-bold">Price</div>
+                    <div id="menu-price" class="text-3xl font-black text-red-600">¥ ---</div>
+                </div>
             </div>
         </div>
 
-        <button id="spin-btn" class="btn-gradient text-white text-xl font-bold py-4 px-12 rounded-full shadow-lg w-full mb-4">
+        <button id="spin-btn" class="btn-saize w-full py-5 rounded-2xl text-white text-2xl font-black mb-6">
             注文を決める！
         </button>
+
+        <div class="grid grid-cols-2 gap-4 text-xs font-black text-gray-500">
+            <div class="bg-white p-2 rounded-xl border shadow-sm">発見: <span id="stat-collected">0</span></div>
+            <div class="bg-white p-2 rounded-xl border shadow-sm">回数: <span id="stat-spins">0</span></div>
+        </div>
     </div>
 
-    <!-- 左下：設定ボタン -->
-    <button id="open-admin" class="fixed bottom-6 left-6 w-14 h-14 bg-gray-800 text-white rounded-full shadow-xl flex items-center justify-center text-2xl hover:bg-black z-40">
-        ⚙️
-    </button>
-
-    <!-- 右下：図鑑ボタン -->
-    <button id="open-collection" class="fixed bottom-6 right-6 w-16 h-16 bg-white border-4 border-green-600 rounded-full shadow-xl flex items-center justify-center text-3xl hover:bg-green-50 z-40">
-        📖
-    </button>
-
-    <!-- 管理者設定モーダル -->
-    <div id="admin-modal" class="modal-overlay">
-        <div class="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh]">
-            
-            <!-- ロック表示 (閉じるボタンより下のレイヤー) -->
-            <div id="admin-lock" class="lock-badge hidden">
-                <div class="text-6xl mb-4">🔒</div>
-                <div class="text-lg font-bold text-gray-800 bg-white shadow-xl p-4 rounded-2xl mx-6">
-                    王様のみ立ち入り禁止<br>
-                    <span class="text-sm font-normal text-gray-500">（メニューをコンプリートしてください）</span>
-                </div>
-            </div>
-
-            <!-- ヘッダー (ロック画面中も閉じるボタンが見えるよう z-index を高く設定) -->
-            <div class="modal-header bg-gray-800 p-4 flex justify-between items-center text-white">
-                <h2 class="font-bold">👑 王様の管理画面</h2>
-                <button class="close-btn text-3xl font-light hover:text-gray-300 transition-colors">&times;</button>
-            </div>
-
-            <div id="admin-inner" class="flex flex-col h-full overflow-hidden">
-                <div class="p-6 overflow-y-auto space-y-6">
-                    <!-- 確率設定 -->
-                    <div>
-                        <h3 class="font-bold border-l-4 border-yellow-400 pl-2 mb-3 text-gray-700">新メニュー出現率の調整</h3>
-                        <input type="range" id="luck-range" min="0" max="100" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-yellow-500">
-                        <div class="flex justify-between text-xs text-gray-500 mt-1">
-                            <span>通常 (15%)</span>
-                            <span id="luck-val">現在: 15%</span>
-                            <span>確定 (100%)</span>
-                        </div>
-                    </div>
-
-                    <!-- メニュー追加 -->
-                    <div class="bg-gray-50 p-4 rounded-xl border">
-                        <h3 class="font-bold mb-3 text-sm">新規メニューの追加</h3>
-                        <div class="space-y-2">
-                            <input type="text" id="add-name" placeholder="メニュー名" class="w-full text-sm p-2 border rounded">
-                            <div class="flex space-x-2">
-                                <input type="number" id="add-price" placeholder="価格" class="w-1/2 text-sm p-2 border rounded">
-                                <select id="add-cat" class="w-1/2 text-sm p-2 border rounded">
-                                    <option>前菜</option><option>パスタ</option><option>ピザ</option><option>肉料理</option><option>デザート</option>
-                                </select>
-                            </div>
-                            <button id="add-btn" class="w-full bg-blue-500 text-white py-2 rounded-lg text-sm font-bold hover:bg-blue-600 transition-colors">追加する</button>
-                        </div>
-                    </div>
-
-                    <!-- メニュー削除/復元 -->
-                    <div>
-                        <h3 class="font-bold mb-3 text-sm flex justify-between items-center">
-                            メニュー一覧
-                            <button id="restore-all" class="text-[10px] bg-red-100 text-red-600 px-2 py-1 rounded hover:bg-red-200">初期状態に戻す</button>
-                        </h3>
-                        <div id="admin-menu-list" class="space-y-2 max-h-48 overflow-y-auto pr-2">
-                            <!-- JSで生成 -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <!-- ツールバー -->
+    <div class="fixed bottom-6 w-full max-w-md px-6 flex justify-between items-center pointer-events-none">
+        <button id="open-admin" class="pointer-events-auto w-14 h-14 bg-gray-900 text-white rounded-2xl shadow-xl flex items-center justify-center text-2xl hover:scale-110 transition-all" title="データリセット">⚙️</button>
+        <button id="open-book" class="pointer-events-auto w-18 h-18 bg-white border-4 border-green-600 rounded-3xl shadow-xl flex items-center justify-center text-4xl p-4 hover:scale-110 transition-all">📖</button>
     </div>
 
     <!-- 年齢設定モーダル -->
     <div id="age-modal" class="modal-overlay">
-        <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-xs w-full text-center">
-            <div class="text-4xl mb-4">🎂</div>
-            <h2 class="text-xl font-bold mb-4">年齢を教えてください</h2>
-            <input type="number" id="age-input" class="w-full border-2 border-gray-300 rounded-xl p-3 mb-6 text-center text-xl font-bold outline-none" placeholder="例: 20">
-            <button id="save-age-btn" class="w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700">決定</button>
+        <div class="bg-white p-8 rounded-[40px] w-full max-w-xs text-center shadow-2xl">
+            <div class="text-6xl mb-4">🍝</div>
+            <h2 class="text-2xl font-black mb-2">何歳ですか？</h2>
+            <p class="text-[10px] font-bold text-gray-400 mb-6 uppercase tracking-widest">Age Verification</p>
+            <input type="number" id="age-input" class="w-full text-center text-4xl font-black border-b-4 border-gray-100 focus:border-green-500 outline-none mb-8" placeholder="20">
+            <button id="age-save" class="w-full bg-green-600 text-white font-black py-4 rounded-2xl text-xl hover:bg-green-700 transition-all">決定</button>
         </div>
     </div>
 
     <!-- 図鑑モーダル -->
-    <div id="collection-modal" class="modal-overlay">
-        <div class="bg-white w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
-            <div class="bg-green-600 p-2 flex justify-around text-white font-bold">
-                <button id="tab-menu" class="py-2 px-4 opacity-100 border-b-2">図鑑</button>
-                <button id="tab-trophy" class="py-2 px-4 opacity-60">トロフィー</button>
-                <button class="close-btn py-2 px-4 text-2xl">&times;</button>
+    <div id="book-modal" class="modal-overlay">
+        <div class="bg-white w-full max-w-lg rounded-[40px] overflow-hidden flex flex-col h-[85vh] shadow-2xl">
+            <div class="bg-green-600 p-4 flex justify-around items-center">
+                <button id="tab-menu" class="text-white font-black text-sm px-4 py-2 bg-white/20 rounded-full">メニュー図鑑</button>
+                <button id="tab-trophy" class="text-white font-black text-sm px-4 py-2 opacity-60 rounded-full">称号トロフィー</button>
+                <button class="close-btn text-white text-3xl font-light">&times;</button>
             </div>
-            <div id="section-menu" class="overflow-y-auto p-4 flex-1">
-                <div class="mb-4 flex items-center space-x-2">
-                    <div class="flex-1 bg-gray-200 h-2 rounded-full overflow-hidden">
-                        <div id="progress-bar" class="bg-green-500 h-full w-0"></div>
+            
+            <div id="content-menu" class="flex-1 overflow-y-auto p-6 custom-scroll">
+                <div class="mb-6">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs font-black text-gray-400">PROGRESS</span>
+                        <span id="prog-text" class="text-sm font-black text-green-700">0/0</span>
                     </div>
-                    <span id="collection-count" class="text-xs font-bold text-gray-500 whitespace-nowrap">0/0</span>
+                    <div class="w-full h-4 bg-gray-100 rounded-full overflow-hidden">
+                        <div id="prog-bar" class="h-full bg-green-500 transition-all duration-1000"></div>
+                    </div>
                 </div>
-                <div id="collection-list" class="grid grid-cols-1 gap-2"></div>
+                <div id="menu-list" class="space-y-3"></div>
             </div>
-            <div id="section-trophy" class="hidden overflow-y-auto p-4 flex-1 space-y-3">
-                <div id="trophy-list"></div>
+
+            <div id="content-trophy" class="hidden flex-1 overflow-y-auto p-6 custom-scroll bg-gray-50">
+                <div id="trophy-list" class="space-y-4"></div>
             </div>
         </div>
     </div>
 
     <script>
-        const INITIAL_MENU = [
+        // メニューマスタ
+        const MENU_MASTER = [
             { id: "1202", name: "小エビのサラダ", price: 350, cat: "サラダ" },
+            { id: "1205", name: "わかめのサラダ", price: 350, cat: "サラダ" },
+            { id: "1207", name: "モッツァレラのサラダ", price: 400, cat: "サラダ" },
             { id: "1208", name: "グリーンサラダ", price: 350, cat: "サラダ" },
+            { id: "1209", name: "チキンのサラダ", price: 350, cat: "サラダ" },
             { id: "1301", name: "コーンクリームスープ", price: 150, cat: "スープ" },
+            { id: "1305", name: "田舎風ミネストローネ", price: 300, cat: "スープ" },
+            { id: "1307", name: "たまねぎのズッパ", price: 300, cat: "スープ" },
             { id: "1401", name: "辛味チキン", price: 300, cat: "前菜" },
+            { id: "1402", name: "アロスティチーニ", price: 400, cat: "前菜" },
+            { id: "1403", name: "ほうれん草のソテー", price: 200, cat: "前菜" },
+            { id: "1404", name: "ポップコーンシュリンプ", price: 300, cat: "前菜" },
+            { id: "1405", name: "エスカルゴのオーブン焼き", price: 400, cat: "前菜" },
+            { id: "1406", name: "小エビのカカクテル", price: 280, cat: "前菜" },
+            { id: "1410", name: "ムール貝のガーリック焼き", price: 400, cat: "前菜" },
             { id: "1415", name: "カリッとポテト", price: 250, cat: "前菜" },
+            { id: "1425", name: "柔らか青豆の温サラダ", price: 200, cat: "前菜" },
             { id: "2101", name: "ミラノ風ドリア", price: 300, cat: "ドリア" },
+            { id: "2103", name: "半熟卵のミラノ風ドリア", price: 350, cat: "ドリア" },
+            { id: "2106", name: "タラコとエビのドリア", price: 400, cat: "ドリア" },
             { id: "2203", name: "マルゲリータピザ", price: 400, cat: "ピザ" },
+            { id: "2206", name: "たっぷりコーンのピザ", price: 400, cat: "ピザ" },
+            { id: "2301", name: "タラコソースシシリー風", price: 400, cat: "パスタ" },
             { id: "2303", name: "ペペロンチーノ", price: 300, cat: "パスタ" },
+            { id: "2304", name: "パルマ風スパゲッティ", price: 400, cat: "パスタ" },
             { id: "2305", name: "カルボナーラ", price: 500, cat: "パスタ" },
+            { id: "2306", name: "ミートソースボロニア風", price: 400, cat: "パスタ" },
+            { id: "2310", name: "スープ入り塩味ボンゴレ", price: 500, cat: "パスタ" },
+            { id: "2328", name: "イカの墨入りセピアソース", price: 500, cat: "パスタ" },
             { id: "2402", name: "若鶏のディアボラ風", price: 500, cat: "肉料理" },
+            { id: "2403", name: "イタリアンハンバーグ", price: 500, cat: "肉料理" },
+            { id: "2407", name: "ディアボラ風ハンバーグ", price: 500, cat: "肉料理" },
+            { id: "2418", name: "ミックスグリル", price: 650, cat: "肉料理" },
+            { id: "3201", name: "ティラミスクラシコ", price: 300, cat: "デザート" },
             { id: "3206", name: "イタリアンプリン", price: 250, cat: "デザート" },
-            { id: "3401", name: "グラスワイン赤", price: 100, cat: "アルコール" }
+            { id: "3301", name: "生ビール(ジョッキ)", price: 400, cat: "アルコール" },
+            { id: "3306", name: "グラッパ", price: 300, cat: "アルコール" },
+            { id: "3401", name: "グラスワイン(赤)", price: 100, cat: "アルコール" },
+            { id: "5101", name: "セットドリンクバー", price: 200, cat: "ドリンク" }
         ];
 
-        const storage = {
-            save: (key, val) => localStorage.setItem(key, JSON.stringify(val)),
-            load: (key, fallback) => {
-                const item = localStorage.getItem(key);
-                return item ? JSON.parse(item) : fallback;
-            }
+        // 称号データ（条件と名前を表示）
+        const TROPHIES = Array.from({length: 100}, (_, i) => {
+            const id = i + 1;
+            if (id === 1) return { id, name: "はじめての客", condition: "1回注文する", check: s => s.spins >= 1, icon: "👤" };
+            if (id === 2) return { id, name: "サラダ通", condition: "サラダを3種類発見", check: s => s.collected.filter(mid => MENU_MASTER.find(m => m.id === mid)?.cat === "サラダ").length >= 3, icon: "🥗" };
+            if (id === 3) return { id, name: "パスタ愛好家", condition: "パスタを5種類発見", check: s => s.collected.filter(mid => MENU_MASTER.find(m => m.id === mid)?.cat === "パスタ").length >= 5, icon: "🍝" };
+            if (id === 10) return { id, name: "常連さん", condition: "累計30回以上注文", check: s => s.spins >= 30, icon: "🎫" };
+            if (id === 50) return { id, name: "サイゼ貴族", condition: "累計金額1万円を突破", check: s => s.totalPrice >= 10000, icon: "💎" };
+            if (id === 100) return { id, name: "さいぜりあの王様", condition: "全てのメニューをコンプリート", check: s => {
+                const active = s.age < 20 ? MENU_MASTER.filter(m => m.cat !== "アルコール") : MENU_MASTER;
+                return active.length > 0 && active.every(m => s.collected.includes(m.id));
+            }, icon: "👑", isRainbow: true };
+            
+            return {
+                id,
+                name: `熟練の客 Lv.${id}`,
+                condition: `累計注文回数 ${id * 2}回`,
+                check: s => s.spins >= id * 2,
+                icon: "🎖️"
+            };
+        });
+
+        // 状態管理（localStorageからの読み込み）
+        const state = {
+            age: JSON.parse(localStorage.getItem('sz_age')) || null,
+            spins: JSON.parse(localStorage.getItem('sz_spins')) || 0,
+            collected: JSON.parse(localStorage.getItem('sz_collected')) || [],
+            totalPrice: JSON.parse(localStorage.getItem('sz_total_price')) || 0,
+            unlockedTrophies: JSON.parse(localStorage.getItem('sz_unlocked_t')) || []
         };
 
-        let state = {
-            menu: storage.load('saize_menu_custom', INITIAL_MENU),
-            collected: storage.load('saize_collected', []),
-            age: storage.load('saize_age', null),
-            luck: storage.load('saize_luck', 15),
-            trophies: storage.load('saize_trophies', []),
-            spins: storage.load('saize_spins', 0)
+        // セーブ処理
+        const save = () => {
+            localStorage.setItem('sz_age', JSON.stringify(state.age));
+            localStorage.setItem('sz_spins', JSON.stringify(state.spins));
+            localStorage.setItem('sz_collected', JSON.stringify(state.collected));
+            localStorage.setItem('sz_total_price', JSON.stringify(state.totalPrice));
+            localStorage.setItem('sz_unlocked_t', JSON.stringify(state.unlockedTrophies));
         };
 
-        const checkIsKing = () => {
-            const currentItems = state.age < 20 ? state.menu.filter(m => m.cat !== "アルコール") : state.menu;
-            return currentItems.every(m => state.collected.includes(m.id));
+        const updateStats = () => {
+            document.getElementById('stat-collected').innerText = state.collected.length;
+            document.getElementById('stat-spins').innerText = state.spins;
+            document.getElementById('age-val').innerText = state.age || "--";
         };
 
-        const updateAgeUI = () => {
-            document.getElementById('age-display').innerText = `年齢: ${state.age || '--'}歳`;
+        const showNotify = (trophy) => {
+            const n = document.getElementById('notify');
+            document.getElementById('notify-title').innerText = trophy.name;
+            document.getElementById('notify-icon').innerText = trophy.icon;
+            n.classList.add('show');
+            setTimeout(() => n.classList.remove('show'), 4000);
         };
 
-        // --- 管理画面ロジック ---
-        const openAdmin = () => {
-            const modal = document.getElementById('admin-modal');
-            const inner = document.getElementById('admin-inner');
-            const lock = document.getElementById('admin-lock');
-            const isKing = checkIsKing();
-
-            modal.style.display = 'flex';
-            if (isKing) {
-                inner.classList.remove('locked-content');
-                lock.classList.add('hidden');
-                document.getElementById('luck-range').value = state.luck;
-                document.getElementById('luck-val').innerText = `現在: ${state.luck}%`;
-                renderAdminMenu();
-            } else {
-                inner.classList.add('locked-content');
-                lock.classList.remove('hidden');
-            }
-        };
-
-        const renderAdminMenu = () => {
-            const list = document.getElementById('admin-menu-list');
-            list.innerHTML = '';
-            state.menu.forEach((m, idx) => {
-                const div = document.createElement('div');
-                div.className = "flex justify-between items-center bg-white p-2 border rounded text-xs";
-                div.innerHTML = `
-                    <span>[${m.cat}] ${m.name}</span>
-                    <button onclick="deleteMenu(${idx})" class="text-red-500 font-bold hover:underline">削除</button>
-                `;
-                list.appendChild(div);
+        const checkTrophies = () => {
+            TROPHIES.forEach(t => {
+                if (!state.unlockedTrophies.includes(t.id) && t.check(state)) {
+                    state.unlockedTrophies.push(t.id);
+                    showNotify(t);
+                    save();
+                }
             });
         };
 
-        window.deleteMenu = (idx) => {
-            state.menu.splice(idx, 1);
-            storage.save('saize_menu_custom', state.menu);
-            renderAdminMenu();
-        };
-
-        document.getElementById('add-btn').onclick = () => {
-            const name = document.getElementById('add-name').value;
-            const price = parseInt(document.getElementById('add-price').value);
-            const cat = document.getElementById('add-cat').value;
-            if (!name || !price) return;
-
-            const newItem = { id: Date.now().toString(), name, price, cat };
-            state.menu.push(newItem);
-            storage.save('saize_menu_custom', state.menu);
-            renderAdminMenu();
-            document.getElementById('add-name').value = '';
-            document.getElementById('add-price').value = '';
-        };
-
-        document.getElementById('restore-all').onclick = () => {
-            if(confirm("メニューを初期状態に戻しますか？")) {
-                state.menu = [...INITIAL_MENU];
-                storage.save('saize_menu_custom', state.menu);
-                renderAdminMenu();
-            }
-        };
-
-        document.getElementById('luck-range').oninput = (e) => {
-            state.luck = parseInt(e.target.value);
-            document.getElementById('luck-val').innerText = `現在: ${state.luck}%`;
-            storage.save('saize_luck', state.luck);
-        };
-
-        // --- ガチャロジック ---
         const spin = () => {
+            if (!state.age) {
+                document.getElementById('age-modal').style.display = 'flex';
+                return;
+            }
+            
             const btn = document.getElementById('spin-btn');
             const display = document.getElementById('menu-name');
-            if (state.age === null) return document.getElementById('age-modal').style.display = 'flex';
-
             btn.disabled = true;
             display.classList.add('spinning');
-            
-            const filteredMenu = state.age < 20 ? state.menu.filter(m => m.cat !== "アルコール") : state.menu;
+
+            const pool = state.age < 20 ? MENU_MASTER.filter(m => m.cat !== "アルコール") : MENU_MASTER;
 
             let count = 0;
-            const timer = setInterval(() => {
-                display.innerText = filteredMenu[Math.floor(Math.random() * filteredMenu.length)].name;
-                if (++count > 20) {
-                    clearInterval(timer);
+            const iv = setInterval(() => {
+                display.innerText = pool[Math.floor(Math.random() * pool.length)].name;
+                if (++count > 25) {
+                    clearInterval(iv);
                     display.classList.remove('spinning');
                     
-                    // 結果決定
-                    let result;
-                    const uncollected = filteredMenu.filter(m => !state.collected.includes(m.id));
-                    if (uncollected.length > 0 && Math.random() < (state.luck / 100)) {
-                        result = uncollected[Math.floor(Math.random() * uncollected.length)];
-                    } else {
-                        result = filteredMenu[Math.floor(Math.random() * filteredMenu.length)];
-                    }
-
+                    const result = pool[Math.floor(Math.random() * pool.length)];
                     display.innerText = result.name;
-                    document.getElementById('menu-id').innerText = "№ " + (result.id.length > 5 ? "NEW" : result.id);
+                    document.getElementById('menu-id').innerText = result.id;
                     document.getElementById('menu-price').innerText = "¥ " + result.price;
-                    document.getElementById('category-label').innerText = result.cat;
+                    document.getElementById('cat-label').innerText = result.cat;
 
-                    if (!state.collected.includes(result.id)) {
-                        state.collected.push(result.id);
-                        storage.save('saize_collected', state.collected);
-                    }
-
+                    if (!state.collected.includes(result.id)) state.collected.push(result.id);
                     state.spins++;
-                    storage.save('saize_spins', state.spins);
-                    checkKingBadge();
+                    state.totalPrice += result.price;
+                    
+                    save();
+                    updateStats();
+                    checkTrophies();
                     btn.disabled = false;
                 }
-            }, 80);
+            }, 60);
         };
 
-        const checkKingBadge = () => {
-            const isKing = checkIsKing();
-            document.getElementById('king-badge').classList.toggle('hidden', !isKing);
-            if (isKing && !state.trophies.includes('king')) {
-                state.trophies.push('king');
-                storage.save('saize_trophies', state.trophies);
-                showNotify("さいぜりあの王様", "👑");
-            }
+        const renderBook = () => {
+            const list = document.getElementById('menu-list');
+            list.innerHTML = '';
+            const pool = state.age < 20 ? MENU_MASTER.filter(m => m.cat !== "アルコール") : MENU_MASTER;
+
+            pool.forEach(m => {
+                const isFound = state.collected.includes(m.id);
+                const item = document.createElement('div');
+                item.className = `p-4 rounded-2xl border-2 flex justify-between items-center transition-all ${isFound ? 'bg-white border-green-200 shadow-sm' : 'bg-gray-100 opacity-40 grayscale'}`;
+                item.innerHTML = `
+                    <div class="flex items-center">
+                        <span class="text-[9px] font-black text-gray-300 mr-3">#${m.id}</span>
+                        <div>
+                            <div class="text-[8px] text-green-600 font-black uppercase">${m.cat}</div>
+                            <div class="text-sm font-black text-gray-800">${isFound ? m.name : '？？？？？'}</div>
+                        </div>
+                    </div>
+                    <div class="text-red-500 font-black">${isFound ? '¥'+m.price : '---'}</div>
+                `;
+                list.appendChild(item);
+            });
+
+            document.getElementById('prog-text').innerText = `${state.collected.length} / ${pool.length}`;
+            document.getElementById('prog-bar').style.width = (state.collected.length / pool.length * 100) + '%';
         };
 
-        const showNotify = (title, icon) => {
-            document.getElementById('notify-title').innerText = title;
-            document.getElementById('notify-icon').innerText = icon;
-            const n = document.getElementById('trophy-notification');
-            n.classList.add('show');
-            setTimeout(() => n.classList.remove('show'), 3000);
+        const renderTrophy = () => {
+            const list = document.getElementById('trophy-list');
+            list.innerHTML = '';
+            TROPHIES.forEach(t => {
+                const isUnlocked = state.unlockedTrophies.includes(t.id);
+                const card = document.createElement('div');
+                
+                const rainbowClass = (t.isRainbow && isUnlocked) ? 'rainbow-border' : '';
+                const nameClass = (t.isRainbow && isUnlocked) ? 'rainbow-rank' : (isUnlocked ? 'text-gray-800' : 'text-gray-400');
+
+                card.className = `p-5 rounded-3xl border-2 flex items-center transition-all ${isUnlocked ? 'bg-white border-yellow-200 shadow-sm' : 'bg-gray-50 border-gray-100'} ${rainbowClass}`;
+                card.innerHTML = `
+                    <div class="text-4xl mr-5 flex-shrink-0">${isUnlocked ? t.icon : '🔒'}</div>
+                    <div class="flex-1">
+                        <div class="text-[8px] font-black text-gray-400 uppercase">Achievement No.${t.id}</div>
+                        <div class="text-sm font-black ${nameClass}">${t.name}</div>
+                        <div class="text-[10px] font-bold text-gray-500 mt-1">条件: ${t.condition}</div>
+                        ${isUnlocked ? '<div class="text-[9px] text-green-600 font-black mt-1">★ 獲得済み</div>' : ''}
+                    </div>
+                `;
+                list.appendChild(card);
+            });
         };
 
-        // --- イベント初期化 ---
-        document.getElementById('open-admin').onclick = openAdmin;
+        // UIイベント
         document.getElementById('spin-btn').onclick = spin;
-        document.querySelectorAll('.close-btn').forEach(b => b.onclick = () => {
-            document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none');
-        });
-
-        document.getElementById('save-age-btn').onclick = () => {
+        document.getElementById('age-btn').onclick = () => document.getElementById('age-modal').style.display = 'flex';
+        document.getElementById('age-save').onclick = () => {
             const val = parseInt(document.getElementById('age-input').value);
             if (val > 0) {
                 state.age = val;
-                storage.save('saize_age', val);
-                updateAgeUI();
+                save();
+                updateStats();
                 document.getElementById('age-modal').style.display = 'none';
             }
         };
 
-        document.getElementById('open-collection').onclick = () => {
-            document.getElementById('collection-modal').style.display = 'flex';
-            const list = document.getElementById('collection-list');
-            list.innerHTML = '';
-            const filtered = state.age < 20 ? state.menu.filter(m => m.cat !== "アルコール") : state.menu;
-            
-            filtered.forEach(m => {
-                const collected = state.collected.includes(m.id);
-                const div = document.createElement('div');
-                div.className = `p-3 rounded-xl border flex justify-between items-center ${collected ? 'bg-white' : 'bg-gray-100 opacity-50'}`;
-                div.innerHTML = `
-                    <div>
-                        <span class="text-[10px] font-bold text-gray-400">№${m.id.slice(0,4)}</span>
-                        <div class="text-sm font-bold text-gray-800">${collected ? m.name : '？？？？？'}</div>
-                    </div>
-                    <div class="text-sm saize-red font-bold">${collected ? '¥'+m.price : '---'}</div>
-                `;
-                list.appendChild(div);
-            });
-
-            const count = filtered.filter(m => state.collected.includes(m.id)).length;
-            const percent = Math.round((count / filtered.length) * 100);
-            document.getElementById('collection-count').innerText = `${count} / ${filtered.length}`;
-            document.getElementById('progress-bar').style.width = percent + '%';
+        document.getElementById('open-book').onclick = () => {
+            document.getElementById('book-modal').style.display = 'flex';
+            renderBook();
         };
 
-        // 初期ロード
-        if (state.age === null) document.getElementById('age-modal').style.display = 'flex';
-        updateAgeUI();
-        checkKingBadge();
+        document.getElementById('tab-menu').onclick = () => {
+            document.getElementById('content-menu').classList.remove('hidden');
+            document.getElementById('content-trophy').classList.add('hidden');
+            document.getElementById('tab-menu').classList.replace('opacity-60', 'bg-white/20');
+            document.getElementById('tab-trophy').classList.replace('bg-white/20', 'opacity-60');
+        };
 
+        document.getElementById('tab-trophy').onclick = () => {
+            document.getElementById('content-menu').classList.add('hidden');
+            document.getElementById('content-trophy').classList.remove('hidden');
+            document.getElementById('tab-trophy').classList.replace('opacity-60', 'bg-white/20');
+            document.getElementById('tab-menu').classList.replace('bg-white/20', 'opacity-60');
+            renderTrophy();
+        };
+
+        document.querySelectorAll('.close-btn').forEach(b => b.onclick = () => {
+            document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none');
+        });
+
+        document.getElementById('open-admin').onclick = () => {
+            if(confirm("全ての進行データをリセットします。よろしいですか？")) {
+                localStorage.clear();
+                location.reload();
+            }
+        };
+
+        // 初期実行
+        updateStats();
+        if (!state.age) {
+            document.getElementById('age-modal').style.display = 'flex';
+        }
     </script>
 </body>
 </html>
