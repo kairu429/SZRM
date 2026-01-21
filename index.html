@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>サイゼリヤ注文スロット</title>
+    <title>サイゼリヤ注文スロット - 王様の特権版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700&display=swap');
@@ -11,12 +11,12 @@
         body {
             font-family: 'M PLUS Rounded 1c', sans-serif;
             background-color: #f3f4f6;
-            overflow-x: hidden;
+            overflow: hidden;
         }
 
         .slot-card {
             background: white;
-            border: 8px solid #009241; /* サイゼリヤグリーン */
+            border: 8px solid #009241;
             border-radius: 20px;
             box-shadow: 0 10px 25px rgba(0,0,0,0.1);
         }
@@ -46,13 +46,10 @@
         .saize-green { color: #009241; }
         .btn-gradient {
             background: linear-gradient(to bottom, #009241, #007a37);
-            transition: transform 0.1s;
         }
-        .btn-gradient:active {
-            transform: scale(0.95);
-        }
+        .btn-gradient:active { transform: scale(0.95); }
 
-        #collection-modal, #age-modal {
+        .modal-overlay {
             display: none;
             position: fixed;
             top: 0;
@@ -61,41 +58,39 @@
             height: 100%;
             background: rgba(0,0,0,0.7);
             z-index: 50;
-        }
-        .modal-content {
-            max-height: 70vh;
-            overflow-y: auto;
+            align-items: center;
+            justify-content: center;
         }
 
-        .tab-active {
-            border-bottom: 4px solid white;
-            opacity: 1;
-        }
-        .tab-inactive {
-            opacity: 0.6;
+        .locked-content {
+            filter: blur(12px);
+            pointer-events: none;
+            user-select: none;
         }
 
-        .trophy-card {
-            background: linear-gradient(135deg, #fff 0%, #f9f9f9 100%);
-            border: 2px solid #e5e7eb;
-        }
-        .trophy-unlocked {
-            border-color: #fbbf24;
-            background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+        /* ロック表示のレイヤー設定 */
+        .lock-badge {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 55;
+            background: rgba(255, 255, 255, 0.3);
+            text-align: center;
         }
 
         @keyframes rainbow {
             0% { color: #ff0000; }
-            17% { color: #ff8800; }
-            33% { color: #ffff00; }
-            50% { color: #00ff00; }
-            67% { color: #0000ff; }
-            83% { color: #8800ff; }
+            33% { color: #00ff00; }
+            66% { color: #0000ff; }
             100% { color: #ff0000; }
         }
-        .rainbow-text {
-            animation: rainbow 3s linear infinite;
-        }
+        .rainbow-text { animation: rainbow 3s linear infinite; }
 
         #trophy-notification {
             position: fixed;
@@ -109,8 +104,12 @@
             transition: right 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             z-index: 100;
         }
-        #trophy-notification.show {
-            right: 20px;
+        #trophy-notification.show { right: 20px; }
+
+        /* ヘッダーを常にロックより上に表示 */
+        .modal-header {
+            position: relative;
+            z-index: 60;
         }
     </style>
 </head>
@@ -125,9 +124,9 @@
         </div>
     </div>
 
-    <div class="max-w-md w-full text-center">
+    <div class="max-w-md w-full text-center relative">
         <h1 class="text-3xl mb-6 saize-red">
-            <span class="bg-white px-4 py-1 rounded-full border-2 border-green-600">サイゼリヤ 注文ガチャ</span>
+            <span class="bg-white px-4 py-1 rounded-full border-2 border-green-600">サイゼリヤ ガチャ</span>
         </h1>
 
         <div class="slot-card p-6 mb-8 relative">
@@ -136,7 +135,7 @@
             </div>
             <div class="flex justify-between items-center mb-2">
                 <div class="text-gray-500 text-sm" id="category-label">カテゴリ</div>
-                <button id="open-settings" class="text-xs bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded text-gray-600">⚙️ 年齢設定</button>
+                <button id="age-display" class="text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">年齢: --歳</button>
             </div>
             
             <div class="slot-window rounded-lg">
@@ -152,394 +151,334 @@
         <button id="spin-btn" class="btn-gradient text-white text-xl font-bold py-4 px-12 rounded-full shadow-lg w-full mb-4">
             注文を決める！
         </button>
-
-        <p class="text-xs text-gray-400 mt-4">
-            ※価格は税込み・全国版メニューを基準としています。
-        </p>
     </div>
 
-    <!-- 年齢設定モーダル -->
-    <div id="age-modal" class="flex items-center justify-center p-4">
-        <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-xs w-full text-center">
-            <div class="text-4xl mb-4">🎂</div>
-            <h2 class="text-xl font-bold mb-4">年齢を教えてください</h2>
-            <p class="text-sm text-gray-500 mb-6">20歳未満の方はアルコールメニューが除外されます。</p>
-            <input type="number" id="age-input" class="w-full border-2 border-gray-300 rounded-xl p-3 mb-6 text-center text-xl font-bold focus:border-green-500 outline-none" placeholder="例: 20">
-            <button id="save-age-btn" class="w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700">設定する</button>
-        </div>
-    </div>
+    <!-- 左下：設定ボタン -->
+    <button id="open-admin" class="fixed bottom-6 left-6 w-14 h-14 bg-gray-800 text-white rounded-full shadow-xl flex items-center justify-center text-2xl hover:bg-black z-40">
+        ⚙️
+    </button>
 
-    <!-- 図鑑表示ボタン -->
-    <button id="open-collection" class="fixed bottom-6 right-6 w-16 h-16 bg-white border-4 border-green-600 rounded-full shadow-xl flex items-center justify-center text-3xl hover:bg-green-50 transition-colors z-40">
+    <!-- 右下：図鑑ボタン -->
+    <button id="open-collection" class="fixed bottom-6 right-6 w-16 h-16 bg-white border-4 border-green-600 rounded-full shadow-xl flex items-center justify-center text-3xl hover:bg-green-50 z-40">
         📖
     </button>
 
-    <!-- 図鑑/トロフィーモーダル -->
-    <div id="collection-modal" class="flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl flex flex-col">
-            <div class="bg-green-600 p-2">
-                <div class="flex justify-around text-white font-bold">
-                    <button id="tab-menu" class="py-2 px-4 tab-active">図鑑</button>
-                    <button id="tab-trophy" class="py-2 px-4 tab-inactive">トロフィー</button>
-                    <button id="close-modal" class="py-2 px-4 text-2xl">&times;</button>
+    <!-- 管理者設定モーダル -->
+    <div id="admin-modal" class="modal-overlay">
+        <div class="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh]">
+            
+            <!-- ロック表示 (閉じるボタンより下のレイヤー) -->
+            <div id="admin-lock" class="lock-badge hidden">
+                <div class="text-6xl mb-4">🔒</div>
+                <div class="text-lg font-bold text-gray-800 bg-white shadow-xl p-4 rounded-2xl mx-6">
+                    王様のみ立ち入り禁止<br>
+                    <span class="text-sm font-normal text-gray-500">（メニューをコンプリートしてください）</span>
                 </div>
             </div>
 
-            <div id="section-menu">
-                <div class="p-4 bg-gray-100 border-b flex justify-between items-center">
-                    <span id="collection-count" class="text-sm font-bold text-gray-600">達成率: 0 / 0 (0%)</span>
-                    <div class="w-1/2 bg-gray-300 rounded-full h-2.5">
-                        <div id="progress-bar" class="bg-green-500 h-2.5 rounded-full" style="width: 0%"></div>
+            <!-- ヘッダー (ロック画面中も閉じるボタンが見えるよう z-index を高く設定) -->
+            <div class="modal-header bg-gray-800 p-4 flex justify-between items-center text-white">
+                <h2 class="font-bold">👑 王様の管理画面</h2>
+                <button class="close-btn text-3xl font-light hover:text-gray-300 transition-colors">&times;</button>
+            </div>
+
+            <div id="admin-inner" class="flex flex-col h-full overflow-hidden">
+                <div class="p-6 overflow-y-auto space-y-6">
+                    <!-- 確率設定 -->
+                    <div>
+                        <h3 class="font-bold border-l-4 border-yellow-400 pl-2 mb-3 text-gray-700">新メニュー出現率の調整</h3>
+                        <input type="range" id="luck-range" min="0" max="100" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-yellow-500">
+                        <div class="flex justify-between text-xs text-gray-500 mt-1">
+                            <span>通常 (15%)</span>
+                            <span id="luck-val">現在: 15%</span>
+                            <span>確定 (100%)</span>
+                        </div>
+                    </div>
+
+                    <!-- メニュー追加 -->
+                    <div class="bg-gray-50 p-4 rounded-xl border">
+                        <h3 class="font-bold mb-3 text-sm">新規メニューの追加</h3>
+                        <div class="space-y-2">
+                            <input type="text" id="add-name" placeholder="メニュー名" class="w-full text-sm p-2 border rounded">
+                            <div class="flex space-x-2">
+                                <input type="number" id="add-price" placeholder="価格" class="w-1/2 text-sm p-2 border rounded">
+                                <select id="add-cat" class="w-1/2 text-sm p-2 border rounded">
+                                    <option>前菜</option><option>パスタ</option><option>ピザ</option><option>肉料理</option><option>デザート</option>
+                                </select>
+                            </div>
+                            <button id="add-btn" class="w-full bg-blue-500 text-white py-2 rounded-lg text-sm font-bold hover:bg-blue-600 transition-colors">追加する</button>
+                        </div>
+                    </div>
+
+                    <!-- メニュー削除/復元 -->
+                    <div>
+                        <h3 class="font-bold mb-3 text-sm flex justify-between items-center">
+                            メニュー一覧
+                            <button id="restore-all" class="text-[10px] bg-red-100 text-red-600 px-2 py-1 rounded hover:bg-red-200">初期状態に戻す</button>
+                        </h3>
+                        <div id="admin-menu-list" class="space-y-2 max-h-48 overflow-y-auto pr-2">
+                            <!-- JSで生成 -->
+                        </div>
                     </div>
                 </div>
-                <div class="modal-content p-4 grid grid-cols-1 gap-2" id="collection-list"></div>
             </div>
+        </div>
+    </div>
 
-            <div id="section-trophy" class="hidden">
-                <div class="p-4 bg-yellow-50 border-b">
-                    <p class="text-xs text-yellow-700 font-bold text-center">🏆 実績を解除して特別な称号を手に入れよう 🏆</p>
+    <!-- 年齢設定モーダル -->
+    <div id="age-modal" class="modal-overlay">
+        <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-xs w-full text-center">
+            <div class="text-4xl mb-4">🎂</div>
+            <h2 class="text-xl font-bold mb-4">年齢を教えてください</h2>
+            <input type="number" id="age-input" class="w-full border-2 border-gray-300 rounded-xl p-3 mb-6 text-center text-xl font-bold outline-none" placeholder="例: 20">
+            <button id="save-age-btn" class="w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700">決定</button>
+        </div>
+    </div>
+
+    <!-- 図鑑モーダル -->
+    <div id="collection-modal" class="modal-overlay">
+        <div class="bg-white w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]">
+            <div class="bg-green-600 p-2 flex justify-around text-white font-bold">
+                <button id="tab-menu" class="py-2 px-4 opacity-100 border-b-2">図鑑</button>
+                <button id="tab-trophy" class="py-2 px-4 opacity-60">トロフィー</button>
+                <button class="close-btn py-2 px-4 text-2xl">&times;</button>
+            </div>
+            <div id="section-menu" class="overflow-y-auto p-4 flex-1">
+                <div class="mb-4 flex items-center space-x-2">
+                    <div class="flex-1 bg-gray-200 h-2 rounded-full overflow-hidden">
+                        <div id="progress-bar" class="bg-green-500 h-full w-0"></div>
+                    </div>
+                    <span id="collection-count" class="text-xs font-bold text-gray-500 whitespace-nowrap">0/0</span>
                 </div>
-                <div class="modal-content p-4 space-y-3" id="trophy-list"></div>
+                <div id="collection-list" class="grid grid-cols-1 gap-2"></div>
+            </div>
+            <div id="section-trophy" class="hidden overflow-y-auto p-4 flex-1 space-y-3">
+                <div id="trophy-list"></div>
             </div>
         </div>
     </div>
 
     <script>
-        const menuData = [
+        const INITIAL_MENU = [
             { id: "1202", name: "小エビのサラダ", price: 350, cat: "サラダ" },
-            { id: "1205", name: "わかめのサラダ", price: 350, cat: "サラダ" },
-            { id: "1207", name: "モッツァレラのサラダ", price: 400, cat: "サラダ" },
             { id: "1208", name: "グリーンサラダ", price: 350, cat: "サラダ" },
-            { id: "1209", name: "チキンのサラダ", price: 350, cat: "サラダ" },
             { id: "1301", name: "コーンクリームスープ", price: 150, cat: "スープ" },
-            { id: "1305", name: "田舎風ミネストローネ", price: 300, cat: "スープ" },
-            { id: "1307", name: "たまねぎのズッパ", price: 300, cat: "スープ" },
             { id: "1401", name: "辛味チキン", price: 300, cat: "前菜" },
-            { id: "1402", name: "アロスティチーニ", price: 400, cat: "前菜" },
-            { id: "1403", name: "ほうれん草のソテー", price: 200, cat: "前菜" },
-            { id: "1404", name: "ポップコーンシュリンプ", price: 300, cat: "前菜" },
-            { id: "1405", name: "エスカルゴのオーブン焼き", price: 400, cat: "前菜" },
-            { id: "1406", name: "小エビのカクテル", price: 280, cat: "前菜" },
-            { id: "1407", name: "チョリソー", price: 400, cat: "前菜" },
-            { id: "1413", name: "爽やかにんじんサラダ", price: 200, cat: "前菜" },
             { id: "1415", name: "カリッとポテト", price: 250, cat: "前菜" },
-            { id: "1422", name: "ハモン・セラーノ", price: 320, cat: "前菜" },
-            { id: "1425", name: "柔らか青豆の温サラダ", price: 200, cat: "前菜" },
             { id: "2101", name: "ミラノ風ドリア", price: 300, cat: "ドリア" },
-            { id: "2103", name: "半熟卵のミラノ風ドリア", price: 350, cat: "ドリア" },
-            { id: "2106", name: "タラコとエビのドリア", price: 400, cat: "ドリア" },
             { id: "2203", name: "マルゲリータピザ", price: 400, cat: "ピザ" },
-            { id: "2206", name: "たっぷりコーンのピザ", price: 400, cat: "ピザ" },
-            { id: "2208", name: "ソーセージピザ", price: 450, cat: "ピザ" },
-            { id: "2301", name: "タラコソースシシリー風", price: 400, cat: "パスタ" },
             { id: "2303", name: "ペペロンチーノ", price: 300, cat: "パスタ" },
             { id: "2305", name: "カルボナーラ", price: 500, cat: "パスタ" },
-            { id: "2308", name: "パルマ風スパゲッティ", price: 400, cat: "パスタ" },
-            { id: "2328", name: "イカの墨入りセピアソース", price: 500, cat: "パスタ" },
             { id: "2402", name: "若鶏のディアボラ風", price: 500, cat: "肉料理" },
-            { id: "2403", name: "イタリアンハンバーグ", price: 500, cat: "肉料理" },
-            { id: "2418", name: "ミックスグリル", price: 650, cat: "肉料理" },
-            { id: "2420", name: "ラムのステーキ", price: 800, cat: "肉料理" },
-            { id: "3201", name: "ティラミスクラシコ", price: 300, cat: "デザート" },
             { id: "3206", name: "イタリアンプリン", price: 250, cat: "デザート" },
-            { id: "3215", name: "コーヒーゼリー＆ジェラート", price: 350, cat: "デザート" },
-            { id: "3218", name: "チョコレートケーキ", price: 300, cat: "デザート" },
-            { id: "3301", name: "生ビールジョッキ", price: 400, cat: "アルコール" },
-            { id: "3401", name: "グラスワイン赤", price: 100, cat: "アルコール" },
-            { id: "5101", name: "セットドリンクバー", price: 200, cat: "ドリンクバー" }
+            { id: "3401", name: "グラスワイン赤", price: 100, cat: "アルコール" }
         ];
 
-        // Cookie操作
-        const setCookie = (name, value) => {
-            const date = new Date();
-            date.setTime(date.getTime() + (365 * 24 * 60 * 60 * 1000));
-            document.cookie = `${name}=${encodeURIComponent(JSON.stringify(value))};expires=${date.toUTCString()};path=/`;
-        };
-
-        const getCookie = (name) => {
-            const nameEQ = name + "=";
-            const ca = document.cookie.split(';');
-            for (let i = 0; i < ca.length; i++) {
-                let c = ca[i];
-                while (c.charAt(0) === ' ') c = c.substring(1, c.length);
-                if (c.indexOf(nameEQ) === 0) {
-                    try {
-                        return JSON.parse(decodeURIComponent(c.substring(nameEQ.length, c.length)));
-                    } catch (e) { return null; }
-                }
+        const storage = {
+            save: (key, val) => localStorage.setItem(key, JSON.stringify(val)),
+            load: (key, fallback) => {
+                const item = localStorage.getItem(key);
+                return item ? JSON.parse(item) : fallback;
             }
-            return null;
         };
 
-        // ステート管理
         let state = {
-            collected: getCookie('saize_collection') || [],
-            totalSpins: getCookie('saize_spins') || 0,
-            consecutiveDupes: getCookie('saize_dupes') || 0,
-            hasSoup: getCookie('saize_has_soup') || false,
-            hasAlcohol: getCookie('saize_has_alc') || false,
-            carbCount: getCookie('saize_carb_count') || 0,
-            dessertCount: getCookie('saize_dessert_count') || 0,
-            saladCount: getCookie('saize_salad_count') || 0,
-            unlockedTrophies: getCookie('saize_trophies') || [],
-            age: getCookie('saize_age') || null,
-            isKing: false
+            menu: storage.load('saize_menu_custom', INITIAL_MENU),
+            collected: storage.load('saize_collected', []),
+            age: storage.load('saize_age', null),
+            luck: storage.load('saize_luck', 15),
+            trophies: storage.load('saize_trophies', []),
+            spins: storage.load('saize_spins', 0)
         };
 
-        const spinBtn = document.getElementById('spin-btn');
-        const menuNameDisp = document.getElementById('menu-name');
-        const menuIdDisp = document.getElementById('menu-id');
-        const menuPriceDisp = document.getElementById('menu-price');
-        const catLabel = document.getElementById('category-label');
-        const kingBadge = document.getElementById('king-badge');
-        const notify = document.getElementById('trophy-notification');
-        const ageModal = document.getElementById('age-modal');
-        const ageInput = document.getElementById('age-input');
-        const saveAgeBtn = document.getElementById('save-age-btn');
+        const checkIsKing = () => {
+            const currentItems = state.age < 20 ? state.menu.filter(m => m.cat !== "アルコール") : state.menu;
+            return currentItems.every(m => state.collected.includes(m.id));
+        };
 
-        // 年齢確認の初期処理
-        if (state.age === null) {
-            ageModal.style.display = 'flex';
-        }
+        const updateAgeUI = () => {
+            document.getElementById('age-display').innerText = `年齢: ${state.age || '--'}歳`;
+        };
 
-        saveAgeBtn.addEventListener('click', () => {
-            const val = parseInt(ageInput.value);
-            if (!val || val < 0) return;
-            state.age = val;
-            setCookie('saize_age', val);
-            ageModal.style.display = 'none';
-        });
+        // --- 管理画面ロジック ---
+        const openAdmin = () => {
+            const modal = document.getElementById('admin-modal');
+            const inner = document.getElementById('admin-inner');
+            const lock = document.getElementById('admin-lock');
+            const isKing = checkIsKing();
 
-        document.getElementById('open-settings').addEventListener('click', () => {
-            ageInput.value = state.age;
-            ageModal.style.display = 'flex';
-        });
+            modal.style.display = 'flex';
+            if (isKing) {
+                inner.classList.remove('locked-content');
+                lock.classList.add('hidden');
+                document.getElementById('luck-range').value = state.luck;
+                document.getElementById('luck-val').innerText = `現在: ${state.luck}%`;
+                renderAdminMenu();
+            } else {
+                inner.classList.add('locked-content');
+                lock.classList.remove('hidden');
+            }
+        };
 
-        function showTrophyNotify(title, icon = "🏆") {
-            document.getElementById('notify-title').innerText = title;
-            document.getElementById('notify-icon').innerText = icon;
-            notify.classList.add('show');
-            setTimeout(() => notify.classList.remove('show'), 4000);
-        }
-
-        function checkTrophies(lastMenu = null) {
-            const currentTrophies = [
-                { id: "king", title: "さいぜりあの王様", cond: state.collected.length >= menuData.length, icon: "👑" },
-                { id: "soup", title: "スープは大好物です!!!!", cond: state.hasSoup, icon: "🥣" },
-                { id: "dupe", title: "この流れを止めて", cond: state.consecutiveDupes >= 10, icon: "♻️" },
-                { id: "spins_10", title: "合計10回引く", cond: state.totalSpins >= 10, icon: "⏱️" },
-                { id: "alcohol", title: "ワインの達人", cond: state.hasAlcohol, icon: "🍷" },
-                { id: "carbs", title: "炭水化物の鬼", cond: state.carbCount >= 10, icon: "🍝" },
-                { id: "rich", title: "大富豪", cond: lastMenu && lastMenu.price >= 500, icon: "💰" },
-                { id: "onecoin", title: "ワンコインの幸せ", cond: lastMenu && lastMenu.price === 500, icon: "🪙" },
-                { id: "milano", title: "ミラノ風の伝道師", cond: lastMenu && lastMenu.name.includes("ミラノ風"), icon: "🍛" },
-                { id: "dessert_lover", title: "デザートは別腹", cond: state.dessertCount >= 3, icon: "🍰" },
-                { id: "vegetarian", title: "ベジタリアン", cond: state.saladCount >= 3, icon: "🥗" },
-                { id: "senbero", title: "せんべろ", cond: lastMenu && lastMenu.price === 100, icon: "💸" },
-                { id: "junkie", title: "ガチャジャンキー", cond: state.totalSpins >= 30, icon: "🎰" }
-            ];
-
-            currentTrophies.forEach(t => {
-                if (t.cond && !state.unlockedTrophies.includes(t.id)) {
-                    state.unlockedTrophies.push(t.id);
-                    setCookie('saize_trophies', state.unlockedTrophies);
-                    showTrophyNotify(t.title, t.icon);
-                }
+        const renderAdminMenu = () => {
+            const list = document.getElementById('admin-menu-list');
+            list.innerHTML = '';
+            state.menu.forEach((m, idx) => {
+                const div = document.createElement('div');
+                div.className = "flex justify-between items-center bg-white p-2 border rounded text-xs";
+                div.innerHTML = `
+                    <span>[${m.cat}] ${m.name}</span>
+                    <button onclick="deleteMenu(${idx})" class="text-red-500 font-bold hover:underline">削除</button>
+                `;
+                list.appendChild(div);
             });
+        };
 
-            state.isKing = state.collected.length === menuData.length;
-            if (state.isKing) kingBadge.classList.remove('hidden');
-        }
-        checkTrophies();
+        window.deleteMenu = (idx) => {
+            state.menu.splice(idx, 1);
+            storage.save('saize_menu_custom', state.menu);
+            renderAdminMenu();
+        };
 
-        function getFilteredMenu() {
-            // 年齢制限の適用
-            if (state.age !== null && state.age < 20) {
-                return menuData.filter(m => m.cat !== "アルコール");
-            }
-            return menuData;
-        }
+        document.getElementById('add-btn').onclick = () => {
+            const name = document.getElementById('add-name').value;
+            const price = parseInt(document.getElementById('add-price').value);
+            const cat = document.getElementById('add-cat').value;
+            if (!name || !price) return;
 
-        function getRandomMenu() {
-            const available = getFilteredMenu();
-            if (state.isKing) {
-                return available[Math.floor(Math.random() * available.length)];
-            }
-            const uncollected = available.filter(m => !state.collected.includes(m.id));
-            if (uncollected.length > 0 && Math.random() < 0.15) { 
-                return uncollected[Math.floor(Math.random() * uncollected.length)];
-            }
-            return available[Math.floor(Math.random() * available.length)];
-        }
+            const newItem = { id: Date.now().toString(), name, price, cat };
+            state.menu.push(newItem);
+            storage.save('saize_menu_custom', state.menu);
+            renderAdminMenu();
+            document.getElementById('add-name').value = '';
+            document.getElementById('add-price').value = '';
+        };
 
-        function spin() {
-            if (state.age === null) {
-                ageModal.style.display = 'flex';
-                return;
+        document.getElementById('restore-all').onclick = () => {
+            if(confirm("メニューを初期状態に戻しますか？")) {
+                state.menu = [...INITIAL_MENU];
+                storage.save('saize_menu_custom', state.menu);
+                renderAdminMenu();
             }
-            spinBtn.disabled = true;
-            menuNameDisp.classList.add('spinning');
-            let counter = 0;
-            const available = getFilteredMenu();
-            const interval = setInterval(() => {
-                const m = available[Math.floor(Math.random() * available.length)];
-                menuNameDisp.innerText = m.name;
-                counter++;
-                if (counter > 20) {
-                    clearInterval(interval);
-                    stopSpin();
+        };
+
+        document.getElementById('luck-range').oninput = (e) => {
+            state.luck = parseInt(e.target.value);
+            document.getElementById('luck-val').innerText = `現在: ${state.luck}%`;
+            storage.save('saize_luck', state.luck);
+        };
+
+        // --- ガチャロジック ---
+        const spin = () => {
+            const btn = document.getElementById('spin-btn');
+            const display = document.getElementById('menu-name');
+            if (state.age === null) return document.getElementById('age-modal').style.display = 'flex';
+
+            btn.disabled = true;
+            display.classList.add('spinning');
+            
+            const filteredMenu = state.age < 20 ? state.menu.filter(m => m.cat !== "アルコール") : state.menu;
+
+            let count = 0;
+            const timer = setInterval(() => {
+                display.innerText = filteredMenu[Math.floor(Math.random() * filteredMenu.length)].name;
+                if (++count > 20) {
+                    clearInterval(timer);
+                    display.classList.remove('spinning');
+                    
+                    // 結果決定
+                    let result;
+                    const uncollected = filteredMenu.filter(m => !state.collected.includes(m.id));
+                    if (uncollected.length > 0 && Math.random() < (state.luck / 100)) {
+                        result = uncollected[Math.floor(Math.random() * uncollected.length)];
+                    } else {
+                        result = filteredMenu[Math.floor(Math.random() * filteredMenu.length)];
+                    }
+
+                    display.innerText = result.name;
+                    document.getElementById('menu-id').innerText = "№ " + (result.id.length > 5 ? "NEW" : result.id);
+                    document.getElementById('menu-price').innerText = "¥ " + result.price;
+                    document.getElementById('category-label').innerText = result.cat;
+
+                    if (!state.collected.includes(result.id)) {
+                        state.collected.push(result.id);
+                        storage.save('saize_collected', state.collected);
+                    }
+
+                    state.spins++;
+                    storage.save('saize_spins', state.spins);
+                    checkKingBadge();
+                    btn.disabled = false;
                 }
             }, 80);
-        }
+        };
 
-        function stopSpin() {
-            const finalMenu = getRandomMenu();
-            menuNameDisp.classList.remove('spinning');
-            menuNameDisp.innerText = finalMenu.name;
-            menuIdDisp.innerText = "№ " + finalMenu.id;
-            menuPriceDisp.innerText = "¥ " + finalMenu.price;
-            catLabel.innerText = finalMenu.cat;
+        const checkKingBadge = () => {
+            const isKing = checkIsKing();
+            document.getElementById('king-badge').classList.toggle('hidden', !isKing);
+            if (isKing && !state.trophies.includes('king')) {
+                state.trophies.push('king');
+                storage.save('saize_trophies', state.trophies);
+                showNotify("さいぜりあの王様", "👑");
+            }
+        };
 
-            state.totalSpins++;
-            
-            if (finalMenu.cat === "スープ") {
-                state.hasSoup = true;
-                setCookie('saize_has_soup', true);
-            }
-            if (finalMenu.cat === "アルコール") {
-                state.hasAlcohol = true;
-                setCookie('saize_has_alc', true);
-            }
-            if (finalMenu.cat === "パスタ" || finalMenu.cat === "ピザ" || finalMenu.cat === "ドリア") {
-                state.carbCount++;
-                setCookie('saize_carb_count', state.carbCount);
-            }
-            if (finalMenu.cat === "デザート") {
-                state.dessertCount++;
-                setCookie('saize_dessert_count', state.dessertCount);
-            }
-            if (finalMenu.cat === "サラダ") {
-                state.saladCount++;
-                setCookie('saize_salad_count', state.saladCount);
-            }
+        const showNotify = (title, icon) => {
+            document.getElementById('notify-title').innerText = title;
+            document.getElementById('notify-icon').innerText = icon;
+            const n = document.getElementById('trophy-notification');
+            n.classList.add('show');
+            setTimeout(() => n.classList.remove('show'), 3000);
+        };
 
-            if (state.collected.includes(finalMenu.id)) {
-                state.consecutiveDupes++;
-            } else {
-                state.collected.push(finalMenu.id);
-                state.consecutiveDupes = 0;
+        // --- イベント初期化 ---
+        document.getElementById('open-admin').onclick = openAdmin;
+        document.getElementById('spin-btn').onclick = spin;
+        document.querySelectorAll('.close-btn').forEach(b => b.onclick = () => {
+            document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none');
+        });
+
+        document.getElementById('save-age-btn').onclick = () => {
+            const val = parseInt(document.getElementById('age-input').value);
+            if (val > 0) {
+                state.age = val;
+                storage.save('saize_age', val);
+                updateAgeUI();
+                document.getElementById('age-modal').style.display = 'none';
             }
+        };
 
-            setCookie('saize_collection', state.collected);
-            setCookie('saize_spins', state.totalSpins);
-            setCookie('saize_dupes', state.consecutiveDupes);
-            
-            checkTrophies(finalMenu);
-            spinBtn.disabled = false;
-        }
-
-        function updateTabs(target) {
-            const tabMenu = document.getElementById('tab-menu');
-            const tabTrophy = document.getElementById('tab-trophy');
-            const secMenu = document.getElementById('section-menu');
-            const secTrophy = document.getElementById('section-trophy');
-
-            if (target === 'menu') {
-                secMenu.classList.remove('hidden');
-                secTrophy.classList.add('hidden');
-                tabMenu.className = 'py-2 px-4 tab-active';
-                tabTrophy.className = 'py-2 px-4 tab-inactive';
-                updateCollectionView();
-            } else {
-                secMenu.classList.add('hidden');
-                secTrophy.classList.remove('hidden');
-                tabMenu.className = 'py-2 px-4 tab-inactive';
-                tabTrophy.className = 'py-2 px-4 tab-active';
-                updateTrophyView();
-            }
-        }
-
-        function updateCollectionView() {
+        document.getElementById('open-collection').onclick = () => {
+            document.getElementById('collection-modal').style.display = 'flex';
             const list = document.getElementById('collection-list');
             list.innerHTML = '';
+            const filtered = state.age < 20 ? state.menu.filter(m => m.cat !== "アルコール") : state.menu;
             
-            const isMinor = state.age !== null && state.age < 20;
-            const totalCount = isMinor ? menuData.filter(m => m.cat !== "アルコール").length : menuData.length;
-
-            menuData.forEach(item => {
-                // 20歳未満でアルコールメニューの場合は表示をスキップ（またはロック）
-                const isAlc = item.cat === "アルコール";
-                if (isMinor && isAlc) return; 
-
-                const isCollected = state.collected.includes(item.id);
-                const itemEl = document.createElement('div');
-                itemEl.className = `p-3 rounded-xl border flex justify-between items-center ${isCollected ? 'bg-white' : 'bg-gray-100 opacity-50'}`;
-                itemEl.innerHTML = `
+            filtered.forEach(m => {
+                const collected = state.collected.includes(m.id);
+                const div = document.createElement('div');
+                div.className = `p-3 rounded-xl border flex justify-between items-center ${collected ? 'bg-white' : 'bg-gray-100 opacity-50'}`;
+                div.innerHTML = `
                     <div>
-                        <span class="text-xs font-bold ${isCollected ? 'text-green-600' : 'text-gray-400'}">№${item.id}</span>
-                        <div class="text-sm font-bold text-gray-800">${isCollected ? item.name : '？？？？？'}</div>
+                        <span class="text-[10px] font-bold text-gray-400">№${m.id.slice(0,4)}</span>
+                        <div class="text-sm font-bold text-gray-800">${collected ? m.name : '？？？？？'}</div>
                     </div>
-                    <div class="text-sm saize-red font-bold">${isCollected ? '¥' + item.price : '---'}</div>
+                    <div class="text-sm saize-red font-bold">${collected ? '¥'+m.price : '---'}</div>
                 `;
-                list.appendChild(itemEl);
+                list.appendChild(div);
             });
-            
-            const collectedCount = isMinor ? state.collected.filter(id => {
-                const m = menuData.find(menu => menu.id === id);
-                return m && m.cat !== "アルコール";
-            }).length : state.collected.length;
 
-            const percent = Math.round((collectedCount / totalCount) * 100);
-            document.getElementById('collection-count').innerText = `達成率: ${collectedCount} / ${totalCount} (${percent}%)`;
-            document.getElementById('progress-bar').style.width = `${percent}%`;
-        }
+            const count = filtered.filter(m => state.collected.includes(m.id)).length;
+            const percent = Math.round((count / filtered.length) * 100);
+            document.getElementById('collection-count').innerText = `${count} / ${filtered.length}`;
+            document.getElementById('progress-bar').style.width = percent + '%';
+        };
 
-        function updateTrophyView() {
-            const list = document.getElementById('trophy-list');
-            list.innerHTML = '';
-            const isMinor = state.age !== null && state.age < 20;
+        // 初期ロード
+        if (state.age === null) document.getElementById('age-modal').style.display = 'flex';
+        updateAgeUI();
+        checkKingBadge();
 
-            const trophies = [
-                { id: "king", title: "さいぜりあの王様", sub: "メニューをすべてゲットする", icon: "👑" },
-                { id: "soup", title: "スープは大好物です!!!!", sub: "スープ系を引く", icon: "🥣", isRainbow: true },
-                { id: "rich", title: "大富豪", sub: "500円以上のメニューを引く", icon: "💰" },
-                { id: "onecoin", title: "ワンコインの幸せ", sub: "ちょうど500円のメニューを引く", icon: "🪙" },
-                { id: "carbs", title: "炭水化物の鬼", sub: "パスタ/ピザ/ドリアを合計10回引く", icon: "🍝" },
-                { id: "alcohol", title: "ワインの達人", sub: "アルコール系を引く", icon: "🍷", hiddenIfMinor: true },
-                { id: "milano", title: "ミラノ風の伝道師", sub: "ミラノ風ドリアを引く", icon: "🍛" },
-                { id: "dessert_lover", title: "デザートは別腹", sub: "デザートを合計3回引く", icon: "🍰" },
-                { id: "vegetarian", title: "ベジタリアン", sub: "サラダを合計3回引く", icon: "🥗" },
-                { id: "senbero", title: "せんべろ", sub: "100円メニューを引く", icon: "💸" },
-                { id: "junkie", title: "ガチャジャンキー", sub: "合計30回スピンする", icon: "🎰" },
-                { id: "dupe", title: "この流れを止めて", sub: "持っているものを10連続で引いた", icon: "♻️" },
-                { id: "spins_10", title: "合計10回引く", sub: "暇かよ", icon: "⏱️" }
-            ];
-
-            trophies.forEach(t => {
-                if (isMinor && t.hiddenIfMinor) return;
-
-                const isUnlocked = state.unlockedTrophies.includes(t.id);
-                const el = document.createElement('div');
-                el.className = `p-4 rounded-2xl flex items-center space-x-4 trophy-card ${isUnlocked ? 'trophy-unlocked shadow-md' : 'opacity-40 grayscale'}`;
-                el.innerHTML = `
-                    <div class="text-3xl">${isUnlocked ? t.icon : '🔒'}</div>
-                    <div class="text-left">
-                        <div class="font-bold text-gray-800 ${isUnlocked && t.isRainbow ? 'rainbow-text' : ''}">${t.title}</div>
-                        <div class="text-xs text-gray-500">${t.sub}</div>
-                    </div>
-                `;
-                list.appendChild(el);
-            });
-        }
-
-        spinBtn.addEventListener('click', spin);
-        document.getElementById('open-collection').addEventListener('click', () => {
-            updateTabs('menu');
-            document.getElementById('collection-modal').style.display = 'flex';
-        });
-        document.getElementById('tab-menu').addEventListener('click', () => updateTabs('menu'));
-        document.getElementById('tab-trophy').addEventListener('click', () => updateTabs('trophy'));
-        document.getElementById('close-modal').addEventListener('click', () => document.getElementById('collection-modal').style.display = 'none');
     </script>
 </body>
 </html>
