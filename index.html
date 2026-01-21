@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>サイゼリヤ注文スロット</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700&display=swap');
+        
+        body {
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            background-color: #f3f4f6;
+        }
+
+        .slot-card {
+            background: white;
+            border: 8px solid #009241; /* サイゼリヤグリーン */
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+
+        .slot-window {
+            height: 120px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #fff;
+            border: 4px inset #eee;
+            margin: 10px 0;
+        }
+
+        .spinning {
+            animation: slot-spin 0.1s linear infinite;
+        }
+
+        @keyframes slot-spin {
+            0% { transform: translateY(-10px); opacity: 0.5; }
+            50% { transform: translateY(10px); opacity: 0.8; }
+            100% { transform: translateY(-10px); opacity: 0.5; }
+        }
+
+        .saize-red { color: #e4002b; }
+        .saize-green { color: #009241; }
+        .btn-gradient {
+            background: linear-gradient(to bottom, #009241, #007a37);
+            transition: transform 0.1s;
+        }
+        .btn-gradient:active {
+            transform: scale(0.95);
+        }
+
+        /* 図鑑モーダル用 */
+        #collection-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 50;
+        }
+        .modal-content {
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div class="max-w-md w-full text-center">
+        <h1 class="text-3xl mb-6 saize-red">
+            <span class="bg-white px-4 py-1 rounded-full border-2 border-green-600">サイゼリヤ 注文ガチャ</span>
+        </h1>
+
+        <div class="slot-card p-6 mb-8">
+            <div class="text-gray-500 text-sm mb-2" id="category-label">カテゴリ</div>
+            
+            <div class="slot-window rounded-lg">
+                <div id="menu-name" class="text-2xl font-bold px-4">？？？？？</div>
+            </div>
+
+            <div class="flex justify-between items-center mt-4 px-2">
+                <div class="text-lg font-bold saize-green" id="menu-id">№ ----</div>
+                <div class="text-2xl font-bold saize-red" id="menu-price">¥ ---</div>
+            </div>
+        </div>
+
+        <button id="spin-btn" class="btn-gradient text-white text-xl font-bold py-4 px-12 rounded-full shadow-lg w-full mb-4">
+            注文を決める！
+        </button>
+
+        <p class="text-xs text-gray-400 mt-4">
+            ※価格は税込み・全国版メニューを基準としています。<br>
+            地域限定メニューは含まれない場合があります。
+        </p>
+    </div>
+
+    <!-- 図鑑表示ボタン -->
+    <button id="open-collection" class="fixed bottom-6 right-6 w-16 h-16 bg-white border-4 border-green-600 rounded-full shadow-xl flex items-center justify-center text-3xl hover:bg-green-50 transition-colors z-40">
+        📖
+    </button>
+
+    <!-- 図鑑モーダル -->
+    <div id="collection-modal" class="flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl flex flex-col">
+            <div class="bg-green-600 p-4 flex justify-between items-center">
+                <h2 class="text-white text-xl font-bold">メニュー図鑑</h2>
+                <button id="close-modal" class="text-white text-2xl">&times;</button>
+            </div>
+            <div class="p-4 bg-gray-100 border-b flex justify-between items-center">
+                <span id="collection-count" class="text-sm font-bold text-gray-600">達成率: 0 / 0 (0%)</span>
+                <div class="w-1/2 bg-gray-300 rounded-full h-2.5">
+                    <div id="progress-bar" class="bg-green-500 h-2.5 rounded-full" style="width: 0%"></div>
+                </div>
+            </div>
+            <div class="modal-content p-4 grid grid-cols-1 gap-2" id="collection-list">
+                <!-- リストがここに生成されます -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const menuData = [
+            // サラダ
+            { id: "1202", name: "小エビのサラダ", price: 350, cat: "サラダ" },
+            { id: "1205", name: "わかめのサラダ", price: 350, cat: "サラダ" },
+            { id: "1207", name: "モッツァレラのサラダ", price: 400, cat: "サラダ" },
+            { id: "1208", name: "グリーンサラダ", price: 350, cat: "サラダ" },
+            { id: "1209", name: "チキンのサラダ", price: 350, cat: "サラダ" },
+            // スープ
+            { id: "1301", name: "コーンクリームスープ", price: 150, cat: "スープ" },
+            { id: "1305", name: "田舎風ミネストローネ", price: 300, cat: "スープ" },
+            { id: "1307", name: "たまねぎのズッパ", price: 300, cat: "スープ" },
+            // 前菜
+            { id: "1401", name: "辛味チキン", price: 300, cat: "前菜" },
+            { id: "1402", name: "アロスティチーニ", price: 400, cat: "前菜" },
+            { id: "1403", name: "ほうれん草のソテー", price: 200, cat: "前菜" },
+            { id: "1404", name: "ポップコーンシュリンプ", price: 300, cat: "前菜" },
+            { id: "1405", name: "エスカルゴのオーブン焼き", price: 400, cat: "前菜" },
+            { id: "1406", name: "小エビのカカクテル", price: 280, cat: "前菜" },
+            { id: "1407", name: "チョリソー", price: 400, cat: "前菜" },
+            { id: "1413", name: "爽やかにんじんサラダ", price: 200, cat: "前菜" },
+            { id: "1415", name: "カリッとポテト", price: 250, cat: "前菜" },
+            { id: "1422", name: "ハモン・セラーノ", price: 320, cat: "前菜" },
+            { id: "1425", name: "柔らか青豆の温サラダ", price: 200, cat: "前菜" },
+            // メイン
+            { id: "2101", name: "ミラノ風ドリア", price: 300, cat: "ドリア" },
+            { id: "2103", name: "半熟卵のミラノ風ドリア", price: 350, cat: "ドリア" },
+            { id: "2106", name: "タラコとエビのドリア", price: 400, cat: "ドリア" },
+            { id: "2203", name: "マルゲリータピザ", price: 400, cat: "ピザ" },
+            { id: "2206", name: "たっぷりコーンのピザ", price: 400, cat: "ピザ" },
+            { id: "2301", name: "タラコソースシシリー風", price: 400, cat: "パスタ" },
+            { id: "2303", name: "ペペロンチーノ", price: 300, cat: "パスタ" },
+            { id: "2305", name: "カルボナーラ", price: 500, cat: "パスタ" },
+            { id: "2328", name: "イカの墨入りセピアソース", price: 500, cat: "パスタ" },
+            { id: "2402", name: "若鶏のディアボラ風", price: 500, cat: "肉料理" },
+            { id: "2403", name: "イタリアンハンバーグ", price: 500, cat: "肉料理" },
+            { id: "2418", name: "ミックスグリル", price: 650, cat: "肉料理" },
+            // デザート
+            { id: "3201", name: "ティラミスクラシコ", price: 300, cat: "デザート" },
+            { id: "3206", name: "イタリアンプリン", price: 250, cat: "デザート" },
+            { id: "3215", name: "コーヒーゼリー＆ジェラート", price: 350, cat: "デザート" },
+            // ドリンク
+            { id: "3301", name: "生ビールジョッキ", price: 400, cat: "アルコール" },
+            { id: "3401", name: "グラスワイン赤", price: 100, cat: "アルコール" },
+            { id: "5101", name: "セットドリンクバー", price: 200, cat: "ドリンクバー" }
+        ];
+
+        // Cookie操作ユーティリティ
+        const setCookie = (name, value, days) => {
+            const date = new Date();
+            date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+            const expires = "expires=" + date.toUTCString();
+            document.cookie = name + "=" + encodeURIComponent(JSON.stringify(value)) + ";" + expires + ";path=/";
+        };
+
+        const getCookie = (name) => {
+            const nameEQ = name + "=";
+            const ca = document.cookie.split(';');
+            for (let i = 0; i < ca.length; i++) {
+                let c = ca[i];
+                while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+                if (c.indexOf(nameEQ) === 0) {
+                    try {
+                        return JSON.parse(decodeURIComponent(c.substring(nameEQ.length, c.length)));
+                    } catch (e) {
+                        return [];
+                    }
+                }
+            }
+            return [];
+        };
+
+        // 初期データ取得
+        let collectedIds = getCookie('saize_collection');
+
+        const spinBtn = document.getElementById('spin-btn');
+        const menuNameDisp = document.getElementById('menu-name');
+        const menuIdDisp = document.getElementById('menu-id');
+        const menuPriceDisp = document.getElementById('menu-price');
+        const catLabel = document.getElementById('category-label');
+
+        const modal = document.getElementById('collection-modal');
+        const openModalBtn = document.getElementById('open-collection');
+        const closeModalBtn = document.getElementById('close-modal');
+        const collectionList = document.getElementById('collection-list');
+        const collectionCount = document.getElementById('collection-count');
+        const progressBar = document.getElementById('progress-bar');
+
+        let isSpinning = false;
+
+        function getRandomMenu() {
+            return menuData[Math.floor(Math.random() * menuData.length)];
+        }
+
+        function spin() {
+            if (isSpinning) return;
+            isSpinning = true;
+            
+            spinBtn.disabled = true;
+            spinBtn.innerText = "抽選中...";
+            
+            menuNameDisp.classList.add('spinning');
+            
+            let counter = 0;
+            const duration = 20; 
+            
+            const interval = setInterval(() => {
+                const tempMenu = getRandomMenu();
+                menuNameDisp.innerText = tempMenu.name;
+                menuIdDisp.innerText = "№ " + tempMenu.id;
+                menuPriceDisp.innerText = "¥ " + tempMenu.price;
+                catLabel.innerText = tempMenu.cat;
+                
+                counter++;
+                if (counter > duration) {
+                    clearInterval(interval);
+                    stopSpin();
+                }
+            }, 80);
+        }
+
+        function stopSpin() {
+            const finalMenu = getRandomMenu();
+            
+            menuNameDisp.classList.remove('spinning');
+            menuNameDisp.innerText = finalMenu.name;
+            menuIdDisp.innerText = "№ " + finalMenu.id;
+            menuPriceDisp.innerText = "¥ " + finalMenu.price;
+            catLabel.innerText = finalMenu.cat;
+            
+            // Cookieに保存
+            if (!collectedIds.includes(finalMenu.id)) {
+                collectedIds.push(finalMenu.id);
+                setCookie('saize_collection', collectedIds, 365);
+            }
+            
+            spinBtn.disabled = false;
+            spinBtn.innerText = "もう一度回す！";
+            isSpinning = false;
+        }
+
+        function updateCollectionView() {
+            collectionList.innerHTML = '';
+            let count = 0;
+            
+            menuData.forEach(item => {
+                const isCollected = collectedIds.includes(item.id);
+                const itemEl = document.createElement('div');
+                itemEl.className = `p-3 rounded-xl border flex justify-between items-center ${isCollected ? 'bg-white border-green-200' : 'bg-gray-200 border-gray-300 opacity-60'}`;
+                
+                if (isCollected) {
+                    count++;
+                    itemEl.innerHTML = `
+                        <div>
+                            <span class="text-xs text-green-600 font-bold">№${item.id}</span>
+                            <div class="text-sm font-bold text-gray-800">${item.name}</div>
+                        </div>
+                        <div class="text-sm saize-red font-bold">¥${item.price}</div>
+                    `;
+                } else {
+                    itemEl.innerHTML = `
+                        <div>
+                            <span class="text-xs text-gray-400 font-bold">№${item.id}</span>
+                            <div class="text-sm font-bold text-gray-400">？？？？？</div>
+                        </div>
+                        <div class="text-sm text-gray-400 font-bold">¥ ---</div>
+                    `;
+                }
+                collectionList.appendChild(itemEl);
+            });
+
+            const percent = Math.round((count / menuData.length) * 100);
+            collectionCount.innerText = `達成率: ${count} / ${menuData.length} (${percent}%)`;
+            progressBar.style.width = `${percent}%`;
+        }
+
+        spinBtn.addEventListener('click', spin);
+
+        openModalBtn.addEventListener('click', () => {
+            updateCollectionView();
+            modal.style.display = 'flex';
+        });
+
+        closeModalBtn.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+
+        window.onclick = (event) => {
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        };
+    </script>
+</body>
+</html>
