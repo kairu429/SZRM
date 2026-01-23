@@ -3,8 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>サイゼリヤ注文スロット - データ引き継ぎ版</title>
+    <title>サイゼリヤ注文スロット - 究極版</title>
+    
+    <link rel="icon" type="image/png" href="https://github.com/kairu429/SZRM/blob/main/%E3%82%B5%E3%82%A4%E3%82%BC%E3%83%AA%E3%82%A2%E3%83%A9%E3%83%B3%E3%83%80%E3%83%9E%E3%82%A4%E3%82%BA.png?raw=true">
+    <link rel="apple-touch-icon" href="https://github.com/kairu429/SZRM/blob/main/%E3%82%B5%E3%82%A4%E3%82%BC%E3%83%AA%E3%82%A2%E3%83%A9%E3%83%B3%E3%83%80%E3%83%9E%E3%82%A4%E3%82%BA.png?raw=true">
+    
     <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, query, onSnapshot, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase Configuration
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'saize-slot-app';
+
+        // グローバルに公開
+        window.db = db;
+        window.auth = auth;
+        window.appId = appId;
+        window.firebaseStore = { doc, setDoc, getDoc, collection, query, onSnapshot, updateDoc, deleteDoc };
+    </script>
+
     <style>
         @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;800;900&display=swap');
         
@@ -43,7 +66,6 @@
             100% { transform: translateY(20px); opacity: 0.3; }
         }
 
-        /* 虹色アニメーション（レアトロフィー用） */
         @keyframes rainbow-bg {
             0% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
@@ -71,9 +93,13 @@
             box-shadow: 0 6px 0 #005a26;
             transition: all 0.1s ease;
         }
-        .btn-saize:active {
+        .btn-saize:active:not(:disabled) {
             transform: translateY(4px);
             box-shadow: 0 2px 0 #005a26;
+        }
+        .btn-saize:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
 
         .modal-overlay {
@@ -113,8 +139,16 @@
     </div>
 
     <div class="max-w-md w-full text-center">
-        <header class="mb-8">
+        <header class="mb-8 flex flex-col items-center">
+            <img src="https://github.com/kairu429/SZRM/blob/main/%E3%82%B5%E3%82%A4%E3%82%BC%E3%83%AA%E3%82%A2%E3%83%A9%E3%83%B3%E3%83%80%E3%83%9E%E3%82%A4%E3%82%BA.png?raw=true" alt="Logo" class="w-16 h-16 mb-2 rounded-xl shadow-md">
             <h1 class="text-4xl font-black text-red-600 drop-shadow-sm">サイゼリヤ<span class="text-green-600">ガチャ</span></h1>
+            
+            <!-- ユーザーネーム表示部分 -->
+            <button id="user-name-btn" class="mt-2 flex items-center gap-1 bg-white/50 px-3 py-1 rounded-full border border-gray-200 hover:bg-white transition-all">
+                <span id="user-display-name" class="text-xs font-black text-gray-700">ゲスト</span>
+                <span class="text-[10px] text-gray-400">✏️</span>
+            </button>
+            <div id="user-uid-display" class="text-[8px] text-gray-300 font-mono mt-1">ID: --------</div>
         </header>
 
         <div class="saize-card p-6 mb-6 relative">
@@ -141,8 +175,8 @@
             </div>
         </div>
 
-        <button id="spin-btn" class="btn-saize w-full py-5 rounded-2xl text-white text-2xl font-black mb-6">
-            注文を決める！
+        <button id="spin-btn" disabled class="btn-saize w-full py-5 rounded-2xl text-white text-2xl font-black mb-6">
+            準備中...
         </button>
 
         <div class="grid grid-cols-2 gap-4 text-xs font-black text-gray-500">
@@ -152,9 +186,20 @@
     </div>
 
     <!-- ツールバー -->
-    <div class="fixed bottom-6 w-full max-w-md px-6 flex justify-between items-center pointer-events-none">
-        <button id="open-admin" class="pointer-events-auto w-14 h-14 bg-gray-900 text-white rounded-2xl shadow-xl flex items-center justify-center text-2xl hover:scale-110 transition-all" title="データリセット">⚙️</button>
-        <button id="open-book" class="pointer-events-auto w-18 h-18 bg-white border-4 border-green-600 rounded-3xl shadow-xl flex items-center justify-center text-4xl p-4 hover:scale-110 transition-all">📖</button>
+    <div class="fixed bottom-6 w-full max-w-md px-6 flex justify-between items-center pointer-events-auto">
+        <button id="open-admin" class="w-14 h-14 bg-gray-900 text-white rounded-2xl shadow-xl flex items-center justify-center text-2xl hover:scale-110 transition-all">⚙️</button>
+        <button id="open-ranking" class="w-14 h-14 bg-yellow-500 text-white rounded-2xl shadow-xl flex items-center justify-center text-2xl hover:scale-110 transition-all">🏆</button>
+        <button id="open-book" class="w-18 h-18 bg-white border-4 border-green-600 rounded-3xl shadow-xl flex items-center justify-center text-4xl p-4 hover:scale-110 transition-all">📖</button>
+    </div>
+
+    <!-- 名前設定モーダル -->
+    <div id="name-modal" class="modal-overlay">
+        <div class="bg-white p-8 rounded-[40px] w-full max-w-xs text-center shadow-2xl">
+            <div class="text-6xl mb-4">🏷️</div>
+            <h2 class="text-2xl font-black mb-2">ユーザー名変更</h2>
+            <input type="text" id="name-input" maxlength="15" class="w-full text-center text-xl font-black border-b-4 border-gray-100 focus:border-green-500 outline-none mb-8" placeholder="なまえ">
+            <button id="name-save" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl text-xl hover:bg-blue-700 transition-all">保存</button>
+        </div>
     </div>
 
     <!-- 年齢設定モーダル -->
@@ -162,9 +207,47 @@
         <div class="bg-white p-8 rounded-[40px] w-full max-w-xs text-center shadow-2xl">
             <div class="text-6xl mb-4">🍝</div>
             <h2 class="text-2xl font-black mb-2">何歳ですか？</h2>
-            <p class="text-[10px] font-bold text-gray-400 mb-6 uppercase tracking-widest">Age Verification</p>
             <input type="number" id="age-input" class="w-full text-center text-4xl font-black border-b-4 border-gray-100 focus:border-green-500 outline-none mb-8" placeholder="20">
             <button id="age-save" class="w-full bg-green-600 text-white font-black py-4 rounded-2xl text-xl hover:bg-green-700 transition-all">決定</button>
+        </div>
+    </div>
+
+    <!-- 管理モーダル -->
+    <div id="admin-modal" class="modal-overlay">
+        <div class="bg-white w-full max-w-sm rounded-[40px] p-6 shadow-2xl">
+            <h2 class="text-xl font-black mb-4 flex items-center gap-2">⚙️ 管理メニュー</h2>
+            
+            <div id="menu-editor" class="hidden space-y-4 mb-6 p-4 bg-green-50 rounded-2xl border-2 border-dashed border-green-200">
+                <p class="text-[10px] font-black text-green-600">👑 王様専用: メニュー追加</p>
+                <input id="new-menu-name" placeholder="メニュー名" class="w-full p-2 border rounded-lg text-sm">
+                <div class="flex gap-2">
+                    <input id="new-menu-price" type="number" placeholder="価格" class="w-1/2 p-2 border rounded-lg text-sm">
+                    <select id="new-menu-cat" class="w-1/2 p-2 border rounded-lg text-sm">
+                        <option>サラダ</option><option>スープ</option><option>前菜</option>
+                        <option>ドリア</option><option>ピザ</option><option>パスタ</option>
+                        <option>肉料理</option><option>デザート</option><option>アルコール</option>
+                    </select>
+                </div>
+                <button id="add-menu-btn" class="w-full bg-green-600 text-white font-black py-2 rounded-xl text-sm">新規追加</button>
+            </div>
+
+            <div class="space-y-3">
+                <button id="reset-data" class="w-full bg-red-100 text-red-600 font-black py-3 rounded-2xl text-sm border-2 border-red-200">全データリセット</button>
+                <button class="close-btn w-full bg-gray-100 text-gray-500 font-black py-3 rounded-2xl text-sm">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ランキングモーダル -->
+    <div id="ranking-modal" class="modal-overlay">
+        <div class="bg-white w-full max-w-lg rounded-[40px] overflow-hidden flex flex-col h-[80vh] shadow-2xl">
+            <div class="bg-yellow-500 p-4 flex justify-between items-center text-white">
+                <span class="font-black">🏆 全国サイゼランキング</span>
+                <button class="close-btn text-2xl">&times;</button>
+            </div>
+            <div id="ranking-list" class="flex-1 overflow-y-auto p-4 space-y-2 custom-scroll">
+                <!-- Rankings injected here -->
+            </div>
         </div>
     </div>
 
@@ -196,126 +279,196 @@
         </div>
     </div>
 
-    <script>
-        // メニューマスタ
-        const MENU_MASTER = [
+    <script type="module">
+        import { signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { doc, setDoc, getDoc, collection, query, onSnapshot, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Constants for Random Name Generation
+        const ADJECTIVES = ["抗菌な", "マニアックな", "ロマンティックな", "普通な", "少し変わった", "人気者な"];
+        const JOBS = ["サイゼリアマニア", "人", "ネットミーム", "ラッパー", "元気屋さん"];
+
+        const generateRandomName = () => {
+            const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
+            const job = JOBS[Math.floor(Math.random() * JOBS.length)];
+            const num = Math.floor(Math.random() * 9999).toString().padStart(4, '0');
+            return `${adj}${job}${num}`;
+        };
+
+        const INITIAL_MENU = [
             { id: "1202", name: "小エビのサラダ", price: 350, cat: "サラダ" },
             { id: "1205", name: "わかめのサラダ", price: 350, cat: "サラダ" },
             { id: "1207", name: "モッツァレラのサラダ", price: 400, cat: "サラダ" },
-            { id: "1208", name: "グリーンサラダ", price: 350, cat: "サラダ" },
-            { id: "1209", name: "チキンのサラダ", price: 350, cat: "サラダ" },
             { id: "1301", name: "コーンクリームスープ", price: 150, cat: "スープ" },
-            { id: "1305", name: "田舎風ミネストローネ", price: 300, cat: "スープ" },
-            { id: "1307", name: "たまねぎのズッパ", price: 300, cat: "スープ" },
             { id: "1401", name: "辛味チキン", price: 300, cat: "前菜" },
-            { id: "1402", name: "アロスティチーニ", price: 400, cat: "前菜" },
-            { id: "1403", name: "ほうれん草のソテー", price: 200, cat: "前菜" },
-            { id: "1404", name: "ポップコーンシュリンプ", price: 300, cat: "前菜" },
             { id: "1405", name: "エスカルゴのオーブン焼き", price: 400, cat: "前菜" },
-            { id: "1406", name: "小エビのカカクテル", price: 280, cat: "前菜" },
-            { id: "1410", name: "ムール貝のガーリック焼き", price: 400, cat: "前菜" },
-            { id: "1415", name: "カリッとポテト", price: 250, cat: "前菜" },
-            { id: "1425", name: "柔らか青豆の温サラダ", price: 200, cat: "前菜" },
             { id: "2101", name: "ミラノ風ドリア", price: 300, cat: "ドリア" },
-            { id: "2103", name: "半熟卵のミラノ風ドリア", price: 350, cat: "ドリア" },
-            { id: "2106", name: "タラコとエビのドリア", price: 400, cat: "ドリア" },
             { id: "2203", name: "マルゲリータピザ", price: 400, cat: "ピザ" },
-            { id: "2206", name: "たっぷりコーンのピザ", price: 400, cat: "ピザ" },
-            { id: "2301", name: "タラコソースシシリー風", price: 400, cat: "パスタ" },
             { id: "2303", name: "ペペロンチーノ", price: 300, cat: "パスタ" },
-            { id: "2304", name: "パルマ風スパゲッティ", price: 400, cat: "パスタ" },
             { id: "2305", name: "カルボナーラ", price: 500, cat: "パスタ" },
-            { id: "2306", name: "ミートソースボロニア風", price: 400, cat: "パスタ" },
-            { id: "2310", name: "スープ入り塩味ボンゴレ", price: 500, cat: "パスタ" },
-            { id: "2328", name: "イカの墨入りセピアソース", price: 500, cat: "パスタ" },
-            { id: "2402", name: "若鶏のディアボラ風", price: 500, cat: "肉料理" },
-            { id: "2403", name: "イタリアンハンバーグ", price: 500, cat: "肉料理" },
-            { id: "2407", name: "ディアボラ風ハンバーグ", price: 500, cat: "肉料理" },
-            { id: "2418", name: "ミックスグリル", price: 650, cat: "肉料理" },
-            { id: "3201", name: "ティラミスクラシコ", price: 300, cat: "デザート" },
             { id: "3206", name: "イタリアンプリン", price: 250, cat: "デザート" },
             { id: "3301", name: "生ビール(ジョッキ)", price: 400, cat: "アルコール" },
-            { id: "3306", name: "グラッパ", price: 300, cat: "アルコール" },
-            { id: "3401", name: "グラスワイン(赤)", price: 100, cat: "アルコール" },
-            { id: "5101", name: "セットドリンクバー", price: 200, cat: "ドリンク" }
+            { id: "3401", name: "グラスワイン(赤)", price: 100, cat: "アルコール" }
         ];
 
-        // 称号データ（条件と名前を表示）
+        let menuMaster = [...INITIAL_MENU];
+        let state = {
+            displayName: localStorage.getItem('saize_user_name') || generateRandomName(),
+            age: null,
+            spins: 0,
+            collected: [],
+            totalPrice: 0,
+            unlockedTrophies: []
+        };
+        let currentUser = null;
+
+        // Save initial random name to localStorage if not exists
+        if (!localStorage.getItem('saize_user_name')) {
+            localStorage.setItem('saize_user_name', state.displayName);
+        }
+
         const TROPHIES = Array.from({length: 100}, (_, i) => {
             const id = i + 1;
             if (id === 1) return { id, name: "はじめての客", condition: "1回注文する", check: s => s.spins >= 1, icon: "👤" };
-            if (id === 2) return { id, name: "サラダ通", condition: "サラダを3種類発見", check: s => s.collected.filter(mid => MENU_MASTER.find(m => m.id === mid)?.cat === "サラダ").length >= 3, icon: "🥗" };
-            if (id === 3) return { id, name: "パスタ愛好家", condition: "パスタを5種類発見", check: s => s.collected.filter(mid => MENU_MASTER.find(m => m.id === mid)?.cat === "パスタ").length >= 5, icon: "🍝" };
+            if (id === 2) return { id, name: "サラダ通", condition: "サラダを3種類発見", check: s => s.collected.filter(mid => menuMaster.find(m => m.id === mid)?.cat === "サラダ").length >= 3, icon: "🥗" };
             if (id === 10) return { id, name: "常連さん", condition: "累計30回以上注文", check: s => s.spins >= 30, icon: "🎫" };
-            if (id === 50) return { id, name: "サイゼ貴族", condition: "累計金額1万円を突破", check: s => s.totalPrice >= 10000, icon: "💎" };
             if (id === 100) return { id, name: "さいぜりあの王様", condition: "全てのメニューをコンプリート", check: s => {
-                const active = s.age < 20 ? MENU_MASTER.filter(m => m.cat !== "アルコール") : MENU_MASTER;
+                const active = s.age < 20 ? menuMaster.filter(m => m.cat !== "アルコール") : menuMaster;
                 return active.length > 0 && active.every(m => s.collected.includes(m.id));
             }, icon: "👑", isRainbow: true };
-            
-            return {
-                id,
-                name: `熟練の客 Lv.${id}`,
-                condition: `累計注文回数 ${id * 2}回`,
-                check: s => s.spins >= id * 2,
-                icon: "🎖️"
-            };
+            return { id, name: `熟練の客 Lv.${id}`, condition: `累計 ${id * 2}回`, check: s => s.spins >= id * 2, icon: "🎖️" };
         });
 
-        // 状態管理（localStorageからの読み込み）
-        const state = {
-            age: JSON.parse(localStorage.getItem('sz_age')) || null,
-            spins: JSON.parse(localStorage.getItem('sz_spins')) || 0,
-            collected: JSON.parse(localStorage.getItem('sz_collected')) || [],
-            totalPrice: JSON.parse(localStorage.getItem('sz_total_price')) || 0,
-            unlockedTrophies: JSON.parse(localStorage.getItem('sz_unlocked_t')) || []
+        const init = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(window.auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(window.auth);
+                }
+            } catch (err) {
+                console.error("Auth failed:", err);
+            }
+
+            onAuthStateChanged(window.auth, async (user) => {
+                if (user) {
+                    currentUser = user;
+                    document.getElementById('user-uid-display').innerText = `ID: ${user.uid.substring(0, 10)}...`;
+                    document.getElementById('spin-btn').disabled = false;
+                    document.getElementById('spin-btn').innerText = "注文を決める！";
+                    
+                    await loadUserData();
+                    startSyncing();
+                }
+            });
         };
 
-        // セーブ処理
-        const save = () => {
-            localStorage.setItem('sz_age', JSON.stringify(state.age));
-            localStorage.setItem('sz_spins', JSON.stringify(state.spins));
-            localStorage.setItem('sz_collected', JSON.stringify(state.collected));
-            localStorage.setItem('sz_total_price', JSON.stringify(state.totalPrice));
-            localStorage.setItem('sz_unlocked_t', JSON.stringify(state.unlockedTrophies));
+        const startSyncing = () => {
+            if (!currentUser) return;
+            syncMenuMaster();
+            syncRankings();
+        };
+
+        const loadUserData = async () => {
+            if (!currentUser) return;
+            try {
+                const docRef = doc(window.db, 'artifacts', window.appId, 'users', currentUser.uid, 'profile', 'state');
+                const snap = await getDoc(docRef);
+                if (snap.exists()) {
+                    const cloudData = snap.data();
+                    // Merge cloud data with local displayName preference if local is newer or cloud is missing
+                    state = { ...state, ...cloudData };
+                    // If cloud has a name, update local storage too
+                    if (state.displayName) {
+                        localStorage.setItem('saize_user_name', state.displayName);
+                    }
+                }
+                updateStats();
+                if (!state.age) document.getElementById('age-modal').style.display = 'flex';
+            } catch (err) {
+                console.error("Load state error:", err);
+            }
+        };
+
+        const saveUserData = async () => {
+            if (!currentUser) return;
+            try {
+                const docRef = doc(window.db, 'artifacts', window.appId, 'users', currentUser.uid, 'profile', 'state');
+                await setDoc(docRef, state);
+                
+                const publicRef = doc(window.db, 'artifacts', window.appId, 'public', 'data', 'rankings', currentUser.uid);
+                await setDoc(publicRef, {
+                    uid: currentUser.uid,
+                    displayName: state.displayName,
+                    spins: state.spins,
+                    collectedCount: state.collected.length,
+                    updatedAt: Date.now()
+                });
+            } catch (err) {
+                console.error("Save state error:", err);
+            }
+        };
+
+        const syncMenuMaster = () => {
+            if (!currentUser) return;
+            const menuCol = collection(window.db, 'artifacts', window.appId, 'public', 'data', 'menu');
+            onSnapshot(menuCol, (snap) => {
+                const cloudMenu = snap.docs.map(d => d.data());
+                if (cloudMenu.length > 0) menuMaster = cloudMenu;
+                checkAdminStatus();
+            }, (err) => console.error("Menu sync error:", err));
+        };
+
+        const syncRankings = () => {
+            if (!currentUser) return;
+            const rankCol = collection(window.db, 'artifacts', window.appId, 'public', 'data', 'rankings');
+            onSnapshot(rankCol, (snap) => {
+                const raw = snap.docs.map(d => d.data());
+                const sorted = raw.sort((a, b) => (b.spins + b.collectedCount * 10) - (a.spins + a.collectedCount * 10)).slice(0, 20);
+                const list = document.getElementById('ranking-list');
+                list.innerHTML = sorted.map((r, i) => `
+                    <div class="flex items-center justify-between p-3 bg-white rounded-xl border shadow-sm ${r.uid === currentUser.uid ? 'border-green-500 bg-green-50' : ''}">
+                        <div class="flex items-center gap-3">
+                            <span class="text-lg font-black text-gray-400 w-6">${i+1}</span>
+                            <div>
+                                <div class="text-[10px] font-black text-gray-800">${r.displayName || 'ゲスト'}</div>
+                                <div class="text-[7px] text-gray-300 font-mono">${r.uid.substring(0, 8)}</div>
+                            </div>
+                        </div>
+                        <div class="flex gap-4">
+                            <div class="text-right"><div class="text-[8px] text-gray-400">注文</div><div class="font-black">${r.spins}</div></div>
+                            <div class="text-right"><div class="text-[8px] text-gray-400">図鑑</div><div class="font-black">${r.collectedCount}</div></div>
+                        </div>
+                    </div>
+                `).join('');
+            }, (err) => console.error("Ranking sync error:", err));
+        };
+
+        const checkAdminStatus = () => {
+            const isKing = state.unlockedTrophies.includes(100);
+            document.getElementById('menu-editor').style.display = isKing ? 'block' : 'none';
         };
 
         const updateStats = () => {
             document.getElementById('stat-collected').innerText = state.collected.length;
             document.getElementById('stat-spins').innerText = state.spins;
             document.getElementById('age-val').innerText = state.age || "--";
-        };
-
-        const showNotify = (trophy) => {
-            const n = document.getElementById('notify');
-            document.getElementById('notify-title').innerText = trophy.name;
-            document.getElementById('notify-icon').innerText = trophy.icon;
-            n.classList.add('show');
-            setTimeout(() => n.classList.remove('show'), 4000);
-        };
-
-        const checkTrophies = () => {
-            TROPHIES.forEach(t => {
-                if (!state.unlockedTrophies.includes(t.id) && t.check(state)) {
-                    state.unlockedTrophies.push(t.id);
-                    showNotify(t);
-                    save();
-                }
-            });
+            document.getElementById('user-display-name').innerText = state.displayName;
+            checkAdminStatus();
         };
 
         const spin = () => {
-            if (!state.age) {
-                document.getElementById('age-modal').style.display = 'flex';
-                return;
-            }
-            
+            if (!currentUser || document.getElementById('spin-btn').disabled) return;
             const btn = document.getElementById('spin-btn');
             const display = document.getElementById('menu-name');
             btn.disabled = true;
             display.classList.add('spinning');
 
-            const pool = state.age < 20 ? MENU_MASTER.filter(m => m.cat !== "アルコール") : MENU_MASTER;
+            const pool = state.age < 20 ? menuMaster.filter(m => m.cat !== "アルコール") : menuMaster;
+            if (pool.length === 0) {
+                display.innerText = "メニューなし";
+                btn.disabled = false;
+                return;
+            }
 
             let count = 0;
             const iv = setInterval(() => {
@@ -323,7 +476,6 @@
                 if (++count > 25) {
                     clearInterval(iv);
                     display.classList.remove('spinning');
-                    
                     const result = pool[Math.floor(Math.random() * pool.length)];
                     display.innerText = result.name;
                     document.getElementById('menu-id').innerText = result.id;
@@ -334,7 +486,7 @@
                     state.spins++;
                     state.totalPrice += result.price;
                     
-                    save();
+                    saveUserData();
                     updateStats();
                     checkTrophies();
                     btn.disabled = false;
@@ -342,15 +494,67 @@
             }, 60);
         };
 
+        const checkTrophies = () => {
+            TROPHIES.forEach(t => {
+                if (!state.unlockedTrophies.includes(t.id) && t.check(state)) {
+                    state.unlockedTrophies.push(t.id);
+                    const n = document.getElementById('notify');
+                    document.getElementById('notify-title').innerText = t.name;
+                    document.getElementById('notify-icon').innerText = t.icon;
+                    n.classList.add('show');
+                    setTimeout(() => n.classList.remove('show'), 4000);
+                    saveUserData();
+                }
+            });
+        };
+
+        // Name Modal Events
+        document.getElementById('user-name-btn').onclick = () => {
+            document.getElementById('name-input').value = state.displayName;
+            document.getElementById('name-modal').style.display = 'flex';
+        };
+
+        document.getElementById('name-save').onclick = () => {
+            const newName = document.getElementById('name-input').value.trim();
+            if (newName) {
+                state.displayName = newName;
+                localStorage.setItem('saize_user_name', newName);
+                saveUserData();
+                updateStats();
+                document.getElementById('name-modal').style.display = 'none';
+            }
+        };
+
+        // Age Modal Events
+        document.getElementById('age-save').onclick = () => {
+            const age = parseInt(document.getElementById('age-input').value);
+            if (age > 0) {
+                state.age = age;
+                saveUserData();
+                updateStats();
+                document.getElementById('age-modal').style.display = 'none';
+            }
+        };
+
+        // UI Events
+        document.getElementById('spin-btn').onclick = spin;
+        document.getElementById('open-admin').onclick = () => document.getElementById('admin-modal').style.display = 'flex';
+        document.getElementById('open-ranking').onclick = () => document.getElementById('ranking-modal').style.display = 'flex';
+        document.getElementById('open-book').onclick = () => {
+            document.getElementById('book-modal').style.display = 'flex';
+            renderBook();
+        };
+
         const renderBook = () => {
             const list = document.getElementById('menu-list');
             list.innerHTML = '';
-            const pool = state.age < 20 ? MENU_MASTER.filter(m => m.cat !== "アルコール") : MENU_MASTER;
+            const pool = state.age < 20 ? menuMaster.filter(m => m.cat !== "アルコール") : menuMaster;
+            const isKing = state.unlockedTrophies.includes(100);
 
-            pool.forEach(m => {
+            menuMaster.sort((a,b) => a.id - b.id).forEach(m => {
                 const isFound = state.collected.includes(m.id);
                 const item = document.createElement('div');
-                item.className = `p-4 rounded-2xl border-2 flex justify-between items-center transition-all ${isFound ? 'bg-white border-green-200 shadow-sm' : 'bg-gray-100 opacity-40 grayscale'}`;
+                item.className = `p-4 rounded-2xl border-2 flex justify-between items-center ${isFound ? 'bg-white border-green-200' : 'bg-gray-100 opacity-40 grayscale'}`;
                 item.innerHTML = `
                     <div class="flex items-center">
                         <span class="text-[9px] font-black text-gray-300 mr-3">#${m.id}</span>
@@ -359,88 +563,85 @@
                             <div class="text-sm font-black text-gray-800">${isFound ? m.name : '？？？？？'}</div>
                         </div>
                     </div>
-                    <div class="text-red-500 font-black">${isFound ? '¥'+m.price : '---'}</div>
+                    <div class="flex items-center gap-2">
+                        <div class="text-red-500 font-black">${isFound ? '¥'+m.price : '---'}</div>
+                        ${isKing ? `<button class="del-btn p-2 text-gray-300 hover:text-red-500 transition-colors" data-id="${m.id}">🗑️</button>` : ''}
+                    </div>
                 `;
                 list.appendChild(item);
             });
+            
+            list.querySelectorAll('.del-btn').forEach(btn => {
+                btn.onclick = async (e) => {
+                    const id = e.currentTarget.getAttribute('data-id');
+                    if (confirm(`メニュー #${id} を削除しますか？`)) {
+                        await deleteDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'menu', id));
+                    }
+                };
+            });
 
             document.getElementById('prog-text').innerText = `${state.collected.length} / ${pool.length}`;
-            document.getElementById('prog-bar').style.width = (state.collected.length / pool.length * 100) + '%';
+            document.getElementById('prog-bar').style.width = (state.collected.length / (pool.length || 1) * 100) + '%';
         };
 
-        const renderTrophy = () => {
-            const list = document.getElementById('trophy-list');
-            list.innerHTML = '';
-            TROPHIES.forEach(t => {
-                const isUnlocked = state.unlockedTrophies.includes(t.id);
-                const card = document.createElement('div');
-                
-                const rainbowClass = (t.isRainbow && isUnlocked) ? 'rainbow-border' : '';
-                const nameClass = (t.isRainbow && isUnlocked) ? 'rainbow-rank' : (isUnlocked ? 'text-gray-800' : 'text-gray-400');
-
-                card.className = `p-5 rounded-3xl border-2 flex items-center transition-all ${isUnlocked ? 'bg-white border-yellow-200 shadow-sm' : 'bg-gray-50 border-gray-100'} ${rainbowClass}`;
-                card.innerHTML = `
-                    <div class="text-4xl mr-5 flex-shrink-0">${isUnlocked ? t.icon : '🔒'}</div>
-                    <div class="flex-1">
-                        <div class="text-[8px] font-black text-gray-400 uppercase">Achievement No.${t.id}</div>
-                        <div class="text-sm font-black ${nameClass}">${t.name}</div>
-                        <div class="text-[10px] font-bold text-gray-500 mt-1">条件: ${t.condition}</div>
-                        ${isUnlocked ? '<div class="text-[9px] text-green-600 font-black mt-1">★ 獲得済み</div>' : ''}
-                    </div>
-                `;
-                list.appendChild(card);
-            });
+        document.getElementById('add-menu-btn').onclick = async () => {
+            const name = document.getElementById('new-menu-name').value;
+            const price = parseInt(document.getElementById('new-menu-price').value);
+            const cat = document.getElementById('new-menu-cat').value;
+            if (!name || isNaN(price)) return;
+            const id = Math.floor(1000 + Math.random() * 9000).toString();
+            await setDoc(doc(window.db, 'artifacts', window.appId, 'public', 'data', 'menu', id), { id, name, price, cat });
+            document.getElementById('new-menu-name').value = '';
+            document.getElementById('new-menu-price').value = '';
         };
 
-        // UIイベント
-        document.getElementById('spin-btn').onclick = spin;
-        document.getElementById('age-btn').onclick = () => document.getElementById('age-modal').style.display = 'flex';
-        document.getElementById('age-save').onclick = () => {
-            const val = parseInt(document.getElementById('age-input').value);
-            if (val > 0) {
-                state.age = val;
-                save();
-                updateStats();
-                document.getElementById('age-modal').style.display = 'none';
+        document.getElementById('reset-data').onclick = async () => {
+            if (confirm("データを消去します。王様の権限も失われますがよろしいですか？")) {
+                localStorage.removeItem('saize_user_name');
+                state = { displayName: generateRandomName(), age: null, spins: 0, collected: [], totalPrice: 0, unlockedTrophies: [] };
+                localStorage.setItem('saize_user_name', state.displayName);
+                await saveUserData();
+                location.reload();
             }
         };
 
-        document.getElementById('open-book').onclick = () => {
-            document.getElementById('book-modal').style.display = 'flex';
-            renderBook();
-        };
-
+        // Tabs
         document.getElementById('tab-menu').onclick = () => {
             document.getElementById('content-menu').classList.remove('hidden');
             document.getElementById('content-trophy').classList.add('hidden');
-            document.getElementById('tab-menu').classList.replace('opacity-60', 'bg-white/20');
-            document.getElementById('tab-trophy').classList.replace('bg-white/20', 'opacity-60');
+            document.getElementById('tab-menu').classList.remove('opacity-60');
+            document.getElementById('tab-trophy').classList.add('opacity-60');
         };
-
         document.getElementById('tab-trophy').onclick = () => {
             document.getElementById('content-menu').classList.add('hidden');
             document.getElementById('content-trophy').classList.remove('hidden');
-            document.getElementById('tab-trophy').classList.replace('opacity-60', 'bg-white/20');
-            document.getElementById('tab-menu').classList.replace('bg-white/20', 'opacity-60');
-            renderTrophy();
+            document.getElementById('tab-menu').classList.add('opacity-60');
+            document.getElementById('tab-trophy').classList.remove('opacity-60');
+            renderTrophies();
+        };
+
+        const renderTrophies = () => {
+            const list = document.getElementById('trophy-list');
+            list.innerHTML = TROPHIES.map(t => {
+                const isUnlocked = state.unlockedTrophies.includes(t.id);
+                return `
+                    <div class="p-5 rounded-3xl border-2 flex items-center bg-white ${isUnlocked ? 'border-yellow-200 shadow-sm' : 'bg-gray-50 opacity-50'} ${t.isRainbow && isUnlocked ? 'rainbow-border' : ''}">
+                        <div class="text-4xl mr-5">${isUnlocked ? t.icon : '🔒'}</div>
+                        <div class="flex-1">
+                            <div class="text-[8px] text-gray-400">Achievement #${t.id}</div>
+                            <div class="text-sm font-black ${t.isRainbow && isUnlocked ? 'rainbow-rank' : ''}">${t.name}</div>
+                            <div class="text-[10px] text-gray-500">${t.condition}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         };
 
         document.querySelectorAll('.close-btn').forEach(b => b.onclick = () => {
             document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none');
         });
 
-        document.getElementById('open-admin').onclick = () => {
-            if(confirm("全ての進行データをリセットします。よろしいですか？")) {
-                localStorage.clear();
-                location.reload();
-            }
-        };
-
-        // 初期実行
-        updateStats();
-        if (!state.age) {
-            document.getElementById('age-modal').style.display = 'flex';
-        }
+        init();
     </script>
 </body>
 </html>
